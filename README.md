@@ -1,97 +1,125 @@
 # AI Quiz Master
 
-An AI-powered online quiz application built with **Next.js**, **Tailwind CSS**, and **Google Gemini**.
+An AI-powered online quiz application built with **Next.js 15, TypeScript, Tailwind CSS, and Google Gemini**. Generate quizzes, test your knowledge, receive instant explanations, and track your learning progress.
 
 ## Features
 
-- User Authentication (Student / Teacher roles)
-- AI Question Generation using Google Gemini
-- Adaptive difficulty indicators
-- Student Dashboard with performance analytics
-- Teacher Panel to create & manage quizzes
-- Instant feedback + explanations
-- Progress tracking & weak topic detection
-- Clean modern UI
+- **User Authentication:** Separate Student and Teacher roles.
+- **AI Quiz Generation:** Generate questions using Google Gemini.
+- **Adaptive Difficulty:** Difficulty indicators for quiz questions.
+- **Student Dashboard:** View performance and learning analytics.
+- **Teacher Dashboard:** Create and manage quizzes.
+- **Instant Feedback:** Get answers and explanations immediately.
+- **Progress Tracking:** Monitor performance and identify weak topics.
+- **Modern UI:** Clean, responsive user interface.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15 (App Router) + TypeScript + Tailwind CSS
-- **AI**: Google Gemini API (`@google/generative-ai`)
-- **Auth & Storage**: LocalStorage (demo) + bcryptjs
-- **Icons**: Lucide React
+| Category | Technology |
+|---|---|
+| Frontend | Next.js 15, React, TypeScript |
+| Styling | Tailwind CSS |
+| AI Integration | Google Gemini API |
+| Authentication | LocalStorage (demo), bcryptjs |
+| Icons | Lucide React |
 
 ## Getting Started
 
-### 1. Install dependencies
+### Prerequisites
+
+- Node.js installed
+- npm installed
+- Google Gemini API key
+
+### 1. Clone the repository
 
 ```bash
+git clone https://github.com/Jiwachh123/ai-quiz-app.git
 cd ai-quiz-app
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
 ```
 
-### 2. Add Gemini API Key
+### 3. Configure the Gemini API key
 
-Create a file `.env.local` in the root:
+Create a `.env.local` file in the project root.
+
+Add your Gemini API key:
 
 ```env
-NEXT_PUBLIC_GEMINI_API_KEY=your_actual_gemini_api_key
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
 ```
 
-Get a free key from: [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
-### 3. Run the app
+**Security note:** The `NEXT_PUBLIC_` prefix exposes the key to the browser. This configuration should only be used for experimentation. Before deploying publicly, move Gemini API calls to server-side code and use a server-only environment variable such as `GEMINI_API_KEY`.
+
+### 4. Start the development server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## How to Use
 
-1. **Register** as Student or Teacher
-2. **Teacher**: Go to Teacher Dashboard → Create Quiz with AI
-3. **Student**: Browse available quizzes or generate your own
-4. Take quizzes and get instant feedback + score
-5. View your progress and weak topics on the dashboard
+1. Register as a Student or Teacher.
+2. Teachers can create quizzes using AI from the Teacher Dashboard.
+3. Students can browse available quizzes or generate their own.
+4. Take quizzes and receive instant feedback and scores.
+5. Track performance and identify weak topics through the dashboard.
 
 ## Project Structure
 
-```
+```text
 src/
 ├── app/
-│   ├── page.tsx              # Landing page
-│   ├── login/page.tsx
-│   ├── register/page.tsx
-│   ├── dashboard/page.tsx    # Student dashboard
-│   ├── teacher/page.tsx      # Teacher panel
+│   ├── page.tsx
+│   ├── login/
+│   ├── register/
+│   ├── dashboard/
+│   ├── teacher/
 │   └── quiz/
-│       ├── create/page.tsx   # AI quiz generator
-│       └── [id]/page.tsx    # Take quiz
+│       ├── create/
+│       └── [id]/
 ├── components/
 ├── lib/
-│   ├── auth.ts               # Authentication
-│   ├── gemini.ts             # AI question generation
-│   ├── storage.ts            # Quiz & attempt storage
+│   ├── auth.ts
+│   ├── gemini.ts
+│   ├── storage.ts
 │   └── utils.ts
-└── types/index.ts
+└── types/
+    └── index.ts
 ```
 
-## Notes for Presentation
+## Current Project Status
 
-- This is a fully working frontend MVP.
-- Data is stored in browser localStorage (perfect for demo & college projects).
-- For production you can later add a real database (Supabase / Prisma + PostgreSQL).
-- Adaptive difficulty is shown per question and can be extended to dynamically generate next questions.
+This project is a working frontend MVP.
+
+- User and quiz data are stored in browser LocalStorage.
+- Authentication is implemented for demonstration purposes.
+- Adaptive difficulty indicators are available and can be extended with dynamic question generation.
 
 ## Future Improvements
 
-- Real database + server-side auth
-- Truly dynamic adaptive question generation during the quiz
-- Multiplayer / live quizzes
-- PDF upload → quiz generation
-- Export results as PDF
+- Integrate a real database using Supabase or PostgreSQL.
+- Implement secure server-side authentication.
+- Add dynamic adaptive question generation.
+- Introduce multiplayer and live quizzes.
+- Support PDF uploads for quiz generation.
+- Export quiz results as PDF reports.
+
+## Author
+
+**Jiwachh Kumar Yadav**
+
+GitHub: [@Jiwachh123](https://github.com/Jiwachh123)
 
 ---
 
-Built for educational purposes.
+Built with ❤️ for educational purposes.
