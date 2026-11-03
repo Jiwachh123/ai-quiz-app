@@ -4,7 +4,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
-import { Brain, BookOpen, Users, BarChart3, Zap, Shield } from "lucide-react";
+import {
+  Brain,
+  Sparkles,
+  ShieldCheck,
+  BarChart3,
+  RotateCcw,
+  Target,
+  ArrowRight,
+  Lock,
+  CheckCircle2,
+} from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
@@ -13,7 +23,7 @@ export default function HomePage() {
   useEffect(() => {
     const user = getCurrentUser();
     if (user) {
-      router.push(user.role === "teacher" ? "/teacher" : "/dashboard");
+      router.push("/dashboard");
     } else {
       setLoading(false);
     }
@@ -21,147 +31,141 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold text-slate-800">AI Quiz Master</span>
+    <div className="min-h-screen bg-slate-950 text-white relative overflow-hidden">
+      {/* Ambient background glow */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Header */}
+      <header className="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-md sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/25">
+              <Brain className="h-6 w-6 text-white" />
+            </div>
+            <span className="text-xl md:text-2xl font-bold bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent">
+              Adaptive Quiz Application
+            </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center space-x-3">
             <Link
               href="/login"
-              className="px-4 py-2 text-slate-700 hover:text-blue-600 font-medium transition"
+              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition"
             >
-              Login
+              Student Sign In
             </Link>
             <Link
               href="/register"
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition shadow-sm"
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-600/30 transition"
             >
               Get Started
             </Link>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 py-20 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-6">
-          <Zap className="w-4 h-4" />
-          Powered by Google Gemini AI
+      {/* Hero Section */}
+      <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center relative z-10">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium mb-8">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>AI-Verified Adaptive Assessment Engine • Student Portal</span>
         </div>
-        <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-          Learn Smarter with<br />
-          <span className="text-blue-600">AI-Powered Quizzes</span>
+
+        <h1 className="text-4xl md:text-6xl font-extrabold max-w-4xl mx-auto leading-tight tracking-tight">
+          Master Any Subject with{" "}
+          <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Adaptive Quiz Application
+          </span>
         </h1>
-        <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-10">
-          Adaptive difficulty, instant explanations, teacher dashboards, and personalized learning — all in one platform.
+
+        <p className="mt-6 text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          Real-time difficulty adaptation, dual-layer AI answer key verification,
+          permanent quiz history, and one-click weak-area practice quizzes.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/register"
-            className="px-8 py-3.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-200"
-          >
-            Start Learning Free
-          </Link>
+
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/login"
-            className="px-8 py-3.5 bg-white text-slate-700 border border-slate-300 rounded-xl font-semibold hover:bg-slate-50 transition"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-semibold text-white shadow-xl shadow-indigo-600/30 transition"
           >
-            Login to Dashboard
+            <span>Sign In to Start Quiz</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+          <Link
+            href="/register"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 font-medium transition"
+          >
+            <Lock className="w-4 h-4 text-indigo-400" />
+            <span>Create Student Account</span>
           </Link>
         </div>
+
+        <p className="mt-4 text-xs text-slate-500">
+          * Mandatory Student Authentication with strict 8-character security password
+        </p>
       </section>
 
-      {/* Features */}
-      <section className="bg-white py-20 border-y border-slate-200">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-slate-900 mb-12">
-            Why Choose AI Quiz Master?
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard
-              icon={<Zap className="w-6 h-6 text-blue-600" />}
-              title="Adaptive Difficulty"
-              description="Questions get harder or easier based on your performance so you always learn at the right level."
-            />
-            <FeatureCard
-              icon={<Brain className="w-6 h-6 text-blue-600" />}
-              title="AI Question Generation"
-              description="Generate unlimited high-quality quizzes on any topic in seconds using Google Gemini."
-            />
-            <FeatureCard
-              icon={<Users className="w-6 h-6 text-blue-600" />}
-              title="Teacher Panel"
-              description="Create quizzes for your class, track student progress, and identify weak areas easily."
-            />
-            <FeatureCard
-              icon={<BarChart3 className="w-6 h-6 text-blue-600" />}
-              title="Smart Analytics"
-              description="See your strong and weak topics with detailed performance insights over time."
-            />
-            <FeatureCard
-              icon={<BookOpen className="w-6 h-6 text-blue-600" />}
-              title="Instant Explanations"
-              description="Every question comes with clear explanations so you understand the concept, not just the answer."
-            />
-            <FeatureCard
-              icon={<Shield className="w-6 h-6 text-blue-600" />}
-              title="Role-Based Access"
-              description="Separate experiences for Students and Teachers with secure login."
-            />
+      {/* Feature Grid */}
+      <section className="max-w-6xl mx-auto px-6 py-12 grid md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+        <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800/80 hover:border-indigo-500/40 transition">
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
+            <Target className="w-5 h-5 text-indigo-400" />
           </div>
+          <h3 className="font-bold text-lg text-white mb-2">
+            Weak-Area Targeting
+          </h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Automatically analyzes every attempt by subtopic and generates custom
+            remedial quizzes on your weak areas on demand.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800/80 hover:border-purple-500/40 transition">
+          <div className="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4">
+            <ShieldCheck className="w-5 h-5 text-purple-400" />
+          </div>
+          <h3 className="font-bold text-lg text-white mb-2">
+            AI Answer Verification
+          </h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Every AI question undergoes an automated second-opinion audit plus
+            live student dispute re-verification to eliminate wrong answer keys.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800/80 hover:border-emerald-500/40 transition">
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
+            <RotateCcw className="w-5 h-5 text-emerald-400" />
+          </div>
+          <h3 className="font-bold text-lg text-white mb-2">
+            Permanent Save & Reattempt
+          </h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            All completed quizzes—questions, options, verified answers, and
+            explanations—are permanently saved to your account for unlimited retakes.
+          </p>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-slate-900/70 border border-slate-800/80 hover:border-amber-500/40 transition">
+          <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
+            <BarChart3 className="w-5 h-5 text-amber-400" />
+          </div>
+          <h3 className="font-bold text-lg text-white mb-2">
+            Performance History
+          </h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Track your historical scores, difficulty progression, and accuracy
+            trends across every attempt and retake.
+          </p>
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="max-w-6xl mx-auto px-4 py-20 text-center">
-        <h2 className="text-3xl font-bold text-slate-900 mb-4">
-          Ready to transform how you learn?
-        </h2>
-        <p className="text-slate-600 mb-8">
-          Join now and experience the future of personalized education.
-        </p>
-        <Link
-          href="/register"
-          className="inline-block px-8 py-3.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-200"
-        >
-          Create Free Account
-        </Link>
-      </section>
-
-      <footer className="border-t border-slate-200 py-8 text-center text-slate-500 text-sm">
-        © 2026 AI Quiz Master • Built with Next.js & Google Gemini
-      </footer>
-    </div>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="p-6 rounded-2xl border border-slate-200 hover:border-blue-200 hover:shadow-md transition bg-slate-50/50">
-      <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4">
-        {icon}
-      </div>
-      <h3 className="text-lg font-semibold text-slate-900 mb-2">{title}</h3>
-      <p className="text-slate-600 text-sm leading-relaxed">{description}</p>
     </div>
   );
 }

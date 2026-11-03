@@ -1,18 +1,6 @@
-import { generateAdaptiveQuestions } from "@/lib/adaptive-generator";
+import { generateAdaptiveQuestions, AdaptiveQuestion, Difficulty } from "@/lib/adaptive-generator";
 import { NextResponse } from "next/server";
 import { decryptSession, encryptSession } from "@/lib/adaptive-session";
-
-type Difficulty = "easy" | "medium" | "hard";
-
-interface AdaptiveQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-  explanation: string;
-  difficulty: Difficulty;
-  topic: string;
-}
 
 interface QuizSession {
   sessionId: string;
@@ -20,6 +8,7 @@ interface QuizSession {
   difficulty: Difficulty;
   totalQuestions: number;
   questions: AdaptiveQuestion[];
+  answers: number[];
   currentIndex: number;
   correctCount: number;
   consecutiveCorrect: number;
@@ -35,7 +24,7 @@ function getNextDifficulty(
   const levels: Difficulty[] = ["easy", "medium", "hard"];
   const currentIndex = levels.indexOf(current);
 
-  if (correctStreak >= 3) {
+  if (correctStreak >= 2) {
     return levels[Math.min(currentIndex + 1, 2)];
   }
 
@@ -71,10 +60,7 @@ export async function POST(request: Request) {
       !session.questions ||
       !Number.isInteger(session.currentIndex) ||
       session.currentIndex < 0 ||
-      session.currentIndex >= session.questions.length ||
-      !Number.isInteger(session.totalQuestions) ||
-      session.totalQuestions < 5 ||
-      session.totalQuestions > 100
+      session.currentIndex >= session.questions.length
     ) {
       return NextResponse.json(
         { error: "Invalid quiz session" },
@@ -90,6 +76,11 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    if (!Array.isArray(session.answers)) {
+      session.answers = [];
+    }
+    session.answers.push(answer);
 
     const isCorrect = answer === currentQuestion.correctAnswer;
 
@@ -110,7 +101,6 @@ export async function POST(request: Request) {
       session.consecutiveWrong
     );
 
-    // Reset the streak after a difficulty change.
     if (session.difficulty !== previousDifficulty) {
       session.consecutiveCorrect = 0;
       session.consecutiveWrong = 0;
@@ -118,14 +108,15 @@ export async function POST(request: Request) {
 
     session.currentIndex += 1;
 
-    const completed =
-      session.currentIndex >= session.totalQuestions;
+    const completed = session.currentIndex >= session.totalQuestions;
 
     const result = {
       isCorrect,
       correctAnswer: currentQuestion.correctAnswer,
       explanation: currentQuestion.explanation,
       difficulty: currentQuestion.difficulty,
+      subtopic: currentQuestion.subtopic || session.topic,
+      verification: currentQuestion.verification,
       nextDifficulty: session.difficulty,
       correctCount: session.correctCount,
       answeredCount: session.currentIndex,
@@ -134,23 +125,29 @@ export async function POST(request: Request) {
     };
 
     if (completed) {
-      return NextResponse.json(result);
+      // Return full verified questions & user answers so client can permanently store the completed quiz & attempt
+      return NextResponse.json({
+        ...result,
+        completedQuizData: {
+          topic: session.topic,
+          questions: session.questions,
+          answers: session.answers,
+        },
+      });
     }
 
     if (session.currentIndex >= session.questions.length) {
-  const remainingQuestions =
-    session.totalQuestions - session.currentIndex;
+      const remainingQuestions = session.totalQuestions - session.currentIndex;
+      const batchSize = Math.min(3, remainingQuestions);
 
-  const batchSize = Math.min(3, remainingQuestions);
+      const newQuestions = await generateAdaptiveQuestions(
+        session.topic,
+        session.difficulty,
+        batchSize
+      );
 
-  const newQuestions = await generateAdaptiveQuestions(
-    session.topic,
-    session.difficulty,
-    batchSize
-  );
-
-  session.questions.push(...newQuestions);
-}
+      session.questions.push(...newQuestions);
+    }
 
     const nextQuestion = session.questions[session.currentIndex];
 
@@ -163,6 +160,8 @@ export async function POST(request: Request) {
         question: nextQuestion.question,
         options: nextQuestion.options,
         difficulty: nextQuestion.difficulty,
+        subtopic: nextQuestion.subtopic || session.topic,
+        verification: nextQuestion.verification,
       },
     });
   } catch (error) {
