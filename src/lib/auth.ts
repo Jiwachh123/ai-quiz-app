@@ -5,15 +5,18 @@ import bcrypt from "bcryptjs";
 const USERS_KEY = "ai_quiz_users";
 const CURRENT_USER_KEY = "ai_quiz_current_user";
 
-export function validateStrictPassword(password: string): { valid: boolean; message: string } {
-  if (password.length !== 8) {
+export function validatePassword(password: string): { valid: boolean; message: string } {
+  if (password.length < 8) {
     return {
       valid: false,
-      message: "Password must be strictly 8 characters long (exact length: 8).",
+      message: "Password must be at least 8 characters long.",
     };
   }
   return { valid: true, message: "" };
 }
+
+// Kept as alias for backwards compatibility
+export const validateStrictPassword = validatePassword;
 
 export function getUsers(): User[] {
   if (typeof window === "undefined") return [];
@@ -46,13 +49,13 @@ export async function registerUser(
   email: string,
   password: string
 ): Promise<{ success: boolean; message: string; user?: User }> {
-  const pwdCheck = validateStrictPassword(password);
+  const pwdCheck = validatePassword(password);
   if (!pwdCheck.valid) {
     return { success: false, message: pwdCheck.message };
   }
 
   const users = getUsers();
-  const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  const existingUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
 
   if (existingUser) {
     return { success: false, message: "Email already registered" };
@@ -77,11 +80,15 @@ export async function registerUser(
   return { success: true, message: "Registration successful", user: safeUser as User };
 }
 
-export async function loginUser(
+/**
+ * Step 1 of Login: Verifies email & password WITHOUT setting session yet.
+ * Session is only activated after Email OTP verification succeeds.
+ */
+export async function verifyUserCredentials(
   email: string,
   password: string
 ): Promise<{ success: boolean; message: string; user?: User }> {
-  const pwdCheck = validateStrictPassword(password);
+  const pwdCheck = validatePassword(password);
   if (!pwdCheck.valid) {
     return { success: false, message: pwdCheck.message };
   }
@@ -100,9 +107,25 @@ export async function loginUser(
 
   const { password: _, ...safeUser } = user;
   safeUser.role = "student";
-  setCurrentUser(safeUser as User);
+  return { success: true, message: "Credentials verified. Proceed to OTP.", user: safeUser as User };
+}
 
-  return { success: true, message: "Login successful", user: safeUser as User };
+/**
+ * Step 2 of Login: Finalizes login after Email OTP is verified.
+ */
+export function completeOtpLogin(user: User) {
+  setCurrentUser({ ...user, role: "student" });
+}
+
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<{ success: boolean; message: string; user?: User }> {
+  const res = await verifyUserCredentials(email, password);
+  if (res.success && res.user) {
+    setCurrentUser(res.user);
+  }
+  return res;
 }
 
 export function logoutUser() {

@@ -32,14 +32,14 @@ export default function RegisterPage() {
     }
   }, [router]);
 
-  const isExactEight = password.length === 8;
+  const isMinEight = password.length >= 8;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (password.length !== 8) {
-      setError("Password must be strictly 8 characters long (exact length: 8).");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -68,7 +68,7 @@ export default function RegisterPage() {
             Adaptive Quiz Application
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Create Your Student Account
+            Create Student Account to Save Quiz History Permanently
           </p>
         </div>
 
@@ -99,7 +99,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              Student Email
+              Student Email (Used for Login OTP)
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -117,16 +117,16 @@ export default function RegisterPage() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Password (Strict 8 Characters)
+                Password (Minimum 8 Characters)
               </label>
               <span
                 className={`text-xs font-mono px-2 py-0.5 rounded-full ${
-                  isExactEight
+                  isMinEight
                     ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
                     : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
                 }`}
               >
-                {password.length}/8 chars
+                {password.length} / 8+ chars
               </span>
             </div>
             <div className="relative">
@@ -135,8 +135,7 @@ export default function RegisterPage() {
                 type={showPassword ? "text" : "password"}
                 required
                 minLength={8}
-                maxLength={8}
-                placeholder="Exactly 8 characters"
+                placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none transition"
@@ -152,16 +151,16 @@ export default function RegisterPage() {
             <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
               <CheckCircle2
                 className={`w-3.5 h-3.5 ${
-                  isExactEight ? "text-emerald-400" : "text-slate-600"
+                  isMinEight ? "text-emerald-400" : "text-slate-600"
                 }`}
               />
-              Password must be strictly 8 characters long.
+              Password must be at least 8 characters long.
             </p>
           </div>
 
           <button
             type="submit"
-            disabled={loading || !isExactEight}
+            disabled={loading || !isMinEight}
             className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/25 transition"
           >
             {loading ? (

@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import {
   saveCompletedAdaptiveQuizAndAttempt,
   calculateUserStats,
+  buildQuizAnalysis,
 } from "@/lib/storage";
 import { User, QuizAttempt, Question } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 import {
   Brain,
   Loader2,
@@ -16,18 +18,18 @@ import {
   Sparkles,
   CheckCircle,
   XCircle,
-  ShieldCheck,
   AlertTriangle,
   RotateCcw,
   Target,
   Trophy,
+  Lock,
 } from "lucide-react";
 
 function CreateQuizContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [weakTopics, setWeakTopics] = useState<string[]>([]);
   const [sessionToken, setSessionToken] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
@@ -53,13 +55,13 @@ function CreateQuizContent() {
 
   useEffect(() => {
     const currentUser = getCurrentUser();
-    if (!currentUser) {
-      router.push("/login");
-      return;
-    }
     setUser(currentUser);
-    const stats = calculateUserStats(currentUser.id);
-    setWeakTopics(stats.weakTopics || []);
+    setAuthChecked(true);
+
+    if (currentUser) {
+      const stats = calculateUserStats(currentUser.id);
+      setWeakTopics(stats.weakTopics || []);
+    }
 
     const paramTopic = searchParams.get("topic");
     const isWeakArea = searchParams.get("weakArea");
@@ -70,7 +72,7 @@ function CreateQuizContent() {
         setDescription(`Targeted adaptive practice session focusing on ${paramTopic}`);
       }
     }
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   const handleGenerate = async (overrideTopic?: string) => {
     const targetTopic = (overrideTopic ?? topic).trim();
@@ -118,7 +120,7 @@ function CreateQuizContent() {
   };
 
   const handleAnswer = async () => {
-    if (selectedAnswer === null || !currentQuestion || checkingAnswer || !user) {
+    if (selectedAnswer === null || !currentQuestion || checkingAnswer) {
       return;
     }
 
@@ -150,16 +152,50 @@ function CreateQuizContent() {
 
       if (data.completed && data.completedQuizData) {
         const timeTaken = Math.round((Date.now() - startTime) / 1000);
-        const { attempt } = saveCompletedAdaptiveQuizAndAttempt({
-          userId: user.id,
-          title: title.trim() || `${topic} Adaptive Quiz`,
-          description,
-          topic: data.completedQuizData.topic || topic,
-          questions: data.completedQuizData.questions as Question[],
-          answers: data.completedQuizData.answers as number[],
-          timeTaken,
-        });
-        setSavedAttempt(attempt);
+        const finalQuestions = data.completedQuizData.questions as Question[];
+        const finalAnswers = data.completedQuizData.answers as number[];
+        const finalTopic = data.completedQuizData.topic || topic;
+
+        if (user) {
+          // Logged-in user: permanently save quiz + attempt + analysis to account
+          const { attempt } = saveCompletedAdaptiveQuizAndAttempt({
+            userId: user.id,
+            title: title.trim() || `${topic} Adaptive Quiz`,
+            description,
+            topic: finalTopic,
+            questions: finalQuestions,
+            answers: finalAnswers,
+            timeTaken,
+          });
+          setSavedAttempt(attempt);
+        } else {
+          // Guest user: compute in-memory analysis only (NOT saved permanently)
+          const correctTotal = finalQuestions.reduce(
+            (acc, q, idx) => acc + (finalAnswers[idx] === q.correctAnswer ? 1 : 0),
+            0
+          );
+          const score =
+            finalQuestions.length > 0
+              ? Math.round((correctTotal / finalQuestions.length) * 100)
+              : 0;
+          const guestAttempt: QuizAttempt = {
+            id: uuidv4(),
+            quizId: "guest",
+            quizTitle: title.trim() || `${finalTopic} Adaptive Quiz (Guest)`,
+            topic: finalTopic,
+            userId: "guest",
+            answers: finalAnswers,
+            score,
+            totalQuestions: finalQuestions.length,
+            correctCount: correctTotal,
+            difficultyProgression: finalQuestions.map((q) => q.difficulty),
+            completedAt: new Date().toISOString(),
+            timeTaken,
+            questionsSnapshot: finalQuestions,
+            analysis: buildQuizAnalysis(finalQuestions, finalAnswers, finalTopic),
+          };
+          setSavedAttempt(guestAttempt);
+        }
         setQuizFinished(true);
       } else {
         setPendingQuestion(data.question || null);
@@ -209,7 +245,7 @@ function CreateQuizContent() {
         setDisputeResult(
           `AI Arbitrator updated the official answer key to Option ${String.fromCharCode(
             65 + audit.verifiedCorrectAnswer
-          )} (Confidence: ${audit.confidence}%). Your score has been adjusted!`
+          )} (Confidence: ${audit.confidence}%).`
         );
       } else {
         setFeedback((prev: any) => ({
@@ -217,12 +253,12 @@ function CreateQuizContent() {
           explanation: audit.verificationExplanation || prev.explanation,
         }));
         setDisputeResult(
-          `AI Arbitrator re-verified and confirmed Option ${String.fromCharCode(
+          `AI Arbitrator verified Option ${String.fromCharCode(
             65 + audit.verifiedCorrectAnswer
           )} is accurate (Confidence: ${audit.confidence}%).`
         );
       }
-    } catch (err) {
+    } catch {
       setDisputeResult("Could not reach AI Arbitrator right now.");
     } finally {
       setDisputing(false);
@@ -238,7 +274,7 @@ function CreateQuizContent() {
     setDisputeResult(null);
   };
 
-  if (!user) {
+  if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
@@ -251,32 +287,65 @@ function CreateQuizContent() {
       <nav className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <Link
-            href="/dashboard"
+            href={user ? "/dashboard" : "/"}
             className="flex items-center gap-2 text-slate-300 hover:text-white text-sm font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Dashboard</span>
+            <span>{user ? "Back to Dashboard" : "Back to Home"}</span>
           </Link>
           <div className="flex items-center gap-2">
             <Brain className="w-6 h-6 text-indigo-400" />
             <span className="font-bold text-white">Adaptive Quiz Application</span>
           </div>
-          <div className="w-20" />
+          {user ? (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              History Saving On
+            </span>
+          ) : (
+            <Link
+              href="/login"
+              className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+            >
+              Sign In
+            </Link>
+          )}
         </div>
       </nav>
 
-      {/* Post-Quiz Detailed Analysis Screen */}
+      {/* Post-Quiz Analysis Screen */}
       {quizFinished && savedAttempt ? (
         <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+          {!user && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Lock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-amber-300">
+                    Guest Session (Not Saved Permanently)
+                  </p>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Sign in with Email OTP or register to save quiz history, track scores, reattempt past quizzes, and unlock weak-area quizzes.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/login"
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shrink-0"
+              >
+                Sign In to Save Future Quizzes
+              </Link>
+            </div>
+          )}
+
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
             <div className="w-16 h-16 bg-indigo-500/15 border border-indigo-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Trophy className="w-8 h-8 text-indigo-400" />
             </div>
             <h1 className="text-3xl font-extrabold text-white">
-              Quiz Permanently Saved & Analyzed!
+              {user ? "Quiz Permanently Saved & Analyzed!" : "Guest Quiz Completed!"}
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              {savedAttempt.quizTitle} • Saved to your student account for future retakes
+              {savedAttempt.quizTitle}
             </p>
 
             <div className="mt-6 flex items-center justify-center gap-8">
@@ -302,17 +371,15 @@ function CreateQuizContent() {
               </div>
             </div>
 
-            {/* Diagnostic Recommendation */}
             <div className="mt-6 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-left">
               <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-1">
-                AI Performance Diagnosis
+                Quiz Performance Diagnosis
               </p>
               <p className="text-sm text-slate-200">
                 {savedAttempt.analysis.recommendation}
               </p>
             </div>
 
-            {/* Difficulty & Subtopic Breakdown */}
             <div className="grid sm:grid-cols-3 gap-3 mt-6 text-left">
               {(["easy", "medium", "hard"] as const).map((diff) => {
                 const stats = savedAttempt.analysis.difficultyBreakdown[diff];
@@ -333,42 +400,65 @@ function CreateQuizContent() {
             </div>
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href={`/quiz/${savedAttempt.quizId}`}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Reattempt Saved Quiz</span>
-              </Link>
-              {savedAttempt.analysis.weakAreas.length > 0 && (
-                <button
-                  onClick={() => {
-                    const weakTopic = savedAttempt.analysis.weakAreas[0];
-                    setQuizFinished(false);
-                    setCurrentQuestion(null);
-                    handleGenerate(weakTopic);
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-semibold transition"
-                >
-                  <Target className="w-4 h-4" />
-                  <span>
-                    Practice Weak Area ({savedAttempt.analysis.weakAreas[0]})
-                  </span>
-                </button>
+              {user ? (
+                <>
+                  <Link
+                    href={`/quiz/${savedAttempt.quizId}`}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Reattempt Saved Quiz</span>
+                  </Link>
+                  {savedAttempt.analysis.weakAreas.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const weakTopic = savedAttempt.analysis.weakAreas[0];
+                        setQuizFinished(false);
+                        setCurrentQuestion(null);
+                        handleGenerate(weakTopic);
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-semibold transition"
+                    >
+                      <Target className="w-4 h-4" />
+                      <span>
+                        Practice Weak Area ({savedAttempt.analysis.weakAreas[0]})
+                      </span>
+                    </button>
+                  )}
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition"
+                  >
+                    <span>Go to Student Dashboard</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setQuizFinished(false);
+                      setCurrentQuestion(null);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Take Another Guest Quiz</span>
+                  </button>
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Sign In to Save History</span>
+                  </Link>
+                </>
               )}
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition"
-              >
-                <span>Go to Student Dashboard</span>
-              </Link>
             </div>
           </div>
 
-          {/* Complete Question-by-Question Review */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
             <h2 className="text-lg font-bold text-white">
-              Saved Questions, Verified Answers & Explanations
+              Questions, Answers & Explanations
             </h2>
             {savedAttempt.questionsSnapshot.map((q, idx) => {
               const userAns = savedAttempt.answers[idx];
@@ -411,7 +501,7 @@ function CreateQuizContent() {
                   </div>
                   <p className="text-xs text-slate-300 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
                     <span className="font-semibold text-indigo-300">
-                      Verified Explanation:{" "}
+                      Explanation:{" "}
                     </span>
                     {q.explanation}
                   </p>
@@ -421,7 +511,6 @@ function CreateQuizContent() {
           </div>
         </main>
       ) : currentQuestion ? (
-        /* Active Adaptive Quiz Interface */
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 md:p-8 shadow-xl">
             <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
@@ -431,17 +520,9 @@ function CreateQuizContent() {
                   {currentQuestion.subtopic || topic}
                 </span>
               </span>
-              <div className="flex items-center gap-2">
-                {currentQuestion.verification?.isVerified && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    AI Verified ({currentQuestion.verification.confidence}%)
-                  </span>
-                )}
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  {currentQuestion.difficulty}
-                </span>
-              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {currentQuestion.difficulty}
+              </span>
             </div>
 
             <div className="h-2 bg-slate-800 rounded-full mb-8 overflow-hidden">
@@ -494,7 +575,7 @@ function CreateQuizContent() {
 
             {feedback && (
               <div className="mt-6 p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <p
                     className={`font-bold text-sm ${
                       feedback.isCorrect ? "text-emerald-400" : "text-rose-400"
@@ -558,17 +639,27 @@ function CreateQuizContent() {
           </div>
         </div>
       ) : (
-        /* Quiz Configuration Form */
         <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-          {/* Quick One-Click Weak Areas Generator */}
-          {weakTopics.length > 0 && (
+          {!user && (
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-4">
+              <p className="text-xs text-slate-300">
+                <strong className="text-amber-300">Guest Mode:</strong> You can take quizzes freely without logging in, but history won&apos;t be saved permanently unless you{" "}
+                <Link href="/login" className="text-indigo-400 underline">
+                  sign in with Email OTP
+                </Link>
+                .
+              </p>
+            </div>
+          )}
+
+          {user && weakTopics.length > 0 && (
             <div className="bg-slate-900 border border-amber-500/30 rounded-2xl p-5">
               <div className="flex items-center gap-2 text-amber-300 font-semibold text-sm mb-2">
                 <Target className="w-4 h-4 text-amber-400" />
                 <span>Demand a Weak-Area Targeted Quiz</span>
               </div>
               <p className="text-xs text-slate-400 mb-3">
-                Click any weak area identified from your past quiz analyses to immediately populate a targeted practice session:
+                Click any weak area identified from your past quiz analyses:
               </p>
               <div className="flex flex-wrap gap-2">
                 {weakTopics.map((wt) => (
@@ -593,10 +684,12 @@ function CreateQuizContent() {
               <Sparkles className="w-6 h-6 text-indigo-400" />
               <div>
                 <h1 className="text-xl font-bold text-white">
-                  Generate AI-Verified Adaptive Quiz
+                  Generate Adaptive Quiz
                 </h1>
                 <p className="text-xs text-slate-400">
-                  Questions are verified by a 2-step AI auditor and saved permanently to your account on completion.
+                  {user
+                    ? "Completed quizzes are saved permanently to your account. Verify any question on demand."
+                    : "Guest Mode: instant AI quiz & analysis. Verify any question on demand."}
                 </p>
               </div>
             </div>
@@ -616,7 +709,7 @@ function CreateQuizContent() {
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g. Operating Systems, DBMS, React"
+                  placeholder="e.g. Operating Systems, DBMS, Polity"
                   className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none"
                 />
               </div>
@@ -679,7 +772,7 @@ function CreateQuizContent() {
               {generating ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Generating & Auditing Questions with AI...</span>
+                  <span>Generating Adaptive Questions...</span>
                 </>
               ) : (
                 <>
