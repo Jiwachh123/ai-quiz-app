@@ -1,14 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import {
-  verifyUserCredentials,
-  completeOtpLogin,
-  getCurrentUser,
-} from "@/lib/auth";
-import { User } from "@/types";
+import { loginUser, getCurrentUser } from "@/lib/auth";
 import {
   Brain,
   Loader2,
@@ -18,24 +13,15 @@ import {
   EyeOff,
   CheckCircle2,
   AlertCircle,
-  KeyRound,
   Sparkles,
-  ArrowLeft,
 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
-  const [step, setStep] = useState<"credentials" | "otp">("credentials");
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  const [pendingUser, setPendingUser] = useState<User | null>(null);
-  const [otpToken, setOtpToken] = useState("");
-  const [otpInput, setOtpInput] = useState("");
-  const [otpNotice, setOtpNotice] = useState("");
-  const [demoOtpHint, setDemoOtpHint] = useState<string | null>(null);
-
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -43,26 +29,23 @@ export default function LoginPage() {
     const user = getCurrentUser();
     if (user) {
       router.push("/dashboard");
+      return;
     }
-  }, [router]);
+    const errParam = searchParams.get("error");
+    if (errParam === "google_not_configured") {
+      setError(
+        "Google Sign-In needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.local."
+      );
+    } else if (errParam === "google_failed") {
+      setError("Google Sign-In failed. Please try again.");
+    } else if (errParam === "google_cancelled") {
+      setError("Google Sign-In was cancelled.");
+    }
+  }, [router, searchParams]);
 
   const isMinEight = password.length >= 8;
 
-  const sendOtpToEmail = async (targetUser: User) => {
-    const res = await fetch("/api/auth/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: targetUser.email, name: targetUser.name }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Could not send OTP");
-
-    setOtpToken(data.otpToken);
-    setOtpNotice(data.message);
-    setDemoOtpHint(data.demoOtp || null);
-  };
-
-  const handleCredentialsSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -72,66 +55,13 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    try {
-      const result = await verifyUserCredentials(email, password);
-      if (!result.success || !result.user) {
-        setError(result.message);
-        setLoading(false);
-        return;
-      }
+    const result = await loginUser(email, password);
+    setLoading(false);
 
-      setPendingUser(result.user);
-      await sendOtpToEmail(result.user);
-      setStep("otp");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not initiate OTP login.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pendingUser) return;
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: pendingUser.email,
-          otp: otpInput.trim(),
-          otpToken,
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.verified) {
-        setError(data.error || "Invalid OTP code.");
-        setLoading(false);
-        return;
-      }
-
-      completeOtpLogin(pendingUser);
+    if (result.success && result.user) {
       router.push("/dashboard");
-    } catch {
-      setError("OTP verification failed. Please try again.");
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (!pendingUser || loading) return;
-    setError("");
-    setLoading(true);
-    try {
-      await sendOtpToEmail(pendingUser);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not resend OTP.");
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.message);
     }
   };
 
@@ -149,9 +79,7 @@ export default function LoginPage() {
             Adaptive Quiz Application
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            {step === "credentials"
-              ? "Sign in to save quiz history permanently"
-              : "Step 2: Verify Email OTP"}
+            Sign in to access your saved quiz history & weak-area analytics
           </p>
         </div>
 
@@ -162,146 +90,115 @@ export default function LoginPage() {
           </div>
         )}
 
-        {step === "credentials" ? (
-          <form onSubmit={handleCredentialsSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                Student Email
+        {/* Direct Google Sign-In Button */}
+        <a
+          href="/api/auth/google"
+          className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-semibold text-sm shadow transition mb-5"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <path
+              fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+            />
+          </svg>
+          <span>Continue with Google</span>
+        </a>
+
+        <div className="relative flex items-center justify-center mb-5">
+          <div className="border-t border-slate-800 w-full" />
+          <span className="bg-slate-900 px-3 text-xs text-slate-500 uppercase">
+            or with email
+          </span>
+          <div className="border-t border-slate-800 w-full" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              Student Email
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="email"
+                required
+                placeholder="student@university.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none transition"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Password
               </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  placeholder="student@university.edu"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none transition"
-                />
-              </div>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+              >
+                Forgot Password?
+              </Link>
             </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Password (Minimum 8 Characters)
-                </label>
-                <span
-                  className={`text-xs font-mono px-2 py-0.5 rounded-full ${
-                    isMinEight
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                      : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
-                  }`}
-                >
-                  {password.length} / 8+ chars
-                </span>
-              </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={8}
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none transition"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
-                <CheckCircle2
-                  className={`w-3.5 h-3.5 ${
-                    isMinEight ? "text-emerald-400" : "text-slate-600"
-                  }`}
-                />
-                Minimum 8 characters required.
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !isMinEight}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/25 transition"
-            >
-              {loading ? (
-                <Loader2 className="animate-spin mx-auto h-5 w-5" />
-              ) : (
-                "Continue & Send Email OTP"
-              )}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleOtpSubmit} className="space-y-5">
-            <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-xs text-indigo-200 space-y-1.5">
-              <p>{otpNotice}</p>
-              {demoOtpHint && (
-                <p className="font-mono text-amber-300 font-bold">
-                  Demo OTP (No SMTP/Resend key set): {demoOtpHint}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                Enter 6-Digit Email OTP
-              </label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  placeholder="6-digit OTP"
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-center tracking-[0.4em] font-mono text-lg outline-none transition"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || otpInput.length !== 6}
-              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 rounded-xl font-semibold text-sm shadow-lg transition"
-            >
-              {loading ? (
-                <Loader2 className="animate-spin mx-auto h-5 w-5" />
-              ) : (
-                "Verify OTP & Sign In"
-              )}
-            </button>
-
-            <div className="flex items-center justify-between text-xs pt-2">
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={8}
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none transition"
+              />
               <button
                 type="button"
-                onClick={() => {
-                  setStep("credentials");
-                  setError("");
-                  setOtpInput("");
-                }}
-                className="text-slate-400 hover:text-white flex items-center gap-1"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={loading}
-                className="text-indigo-400 hover:text-indigo-300 font-medium"
-              >
-                Resend OTP
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
               </button>
             </div>
-          </form>
-        )}
+            <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5">
+              <CheckCircle2
+                className={`w-3.5 h-3.5 ${
+                  isMinEight ? "text-emerald-400" : "text-slate-600"
+                }`}
+              />
+              Minimum 8 characters required ({password.length} entered).
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !isMinEight}
+            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 rounded-xl font-semibold text-sm shadow-lg shadow-indigo-600/25 transition"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin mx-auto h-5 w-5" />
+            ) : (
+              "Sign In"
+            )}
+          </button>
+        </form>
 
         <div className="mt-6 pt-5 border-t border-slate-800 space-y-3 text-center text-sm">
           <p className="text-slate-400">
@@ -310,7 +207,7 @@ export default function LoginPage() {
               href="/register"
               className="text-indigo-400 hover:text-indigo-300 font-semibold"
             >
-              Create Account
+              Create Account (Verify with OTP)
             </Link>
           </p>
           <div className="pt-2">
@@ -325,5 +222,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-950">
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-400" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

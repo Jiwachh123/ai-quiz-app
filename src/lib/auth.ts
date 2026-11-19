@@ -15,7 +15,6 @@ export function validatePassword(password: string): { valid: boolean; message: s
   return { valid: true, message: "" };
 }
 
-// Kept as alias for backwards compatibility
 export const validateStrictPassword = validatePassword;
 
 export function getUsers(): User[] {
@@ -27,6 +26,17 @@ export function getUsers(): User[] {
 export function saveUsers(users: User[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+export function isEmailRegistered(email: string): boolean {
+  const users = getUsers();
+  return users.some((u) => u.email.toLowerCase() === email.toLowerCase().trim());
+}
+
+export function getUserNameByEmail(email: string): string {
+  const users = getUsers();
+  const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
+  return found?.name || "Student";
 }
 
 export function getCurrentUser(): User | null {
@@ -80,11 +90,7 @@ export async function registerUser(
   return { success: true, message: "Registration successful", user: safeUser as User };
 }
 
-/**
- * Step 1 of Login: Verifies email & password WITHOUT setting session yet.
- * Session is only activated after Email OTP verification succeeds.
- */
-export async function verifyUserCredentials(
+export async function loginUser(
   email: string,
   password: string
 ): Promise<{ success: boolean; message: string; user?: User }> {
@@ -107,27 +113,60 @@ export async function verifyUserCredentials(
 
   const { password: _, ...safeUser } = user;
   safeUser.role = "student";
-  return { success: true, message: "Credentials verified. Proceed to OTP.", user: safeUser as User };
+  setCurrentUser(safeUser as User);
+
+  return { success: true, message: "Login successful", user: safeUser as User };
 }
 
-/**
- * Step 2 of Login: Finalizes login after Email OTP is verified.
- */
-export function completeOtpLogin(user: User) {
-  setCurrentUser({ ...user, role: "student" });
-}
-
-export async function loginUser(
+export async function resetUserPassword(
   email: string,
-  password: string
-): Promise<{ success: boolean; message: string; user?: User }> {
-  const res = await verifyUserCredentials(email, password);
-  if (res.success && res.user) {
-    setCurrentUser(res.user);
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const pwdCheck = validatePassword(newPassword);
+  if (!pwdCheck.valid) {
+    return { success: false, message: pwdCheck.message };
   }
-  return res;
+
+  const users = getUsers();
+  const userIndex = users.findIndex(
+    (u) => u.email.toLowerCase() === email.toLowerCase().trim()
+  );
+
+  if (userIndex === -1) {
+    return { success: false, message: "No account found with this email address." };
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  users[userIndex].password = hashedPassword;
+  saveUsers(users);
+
+  return { success: true, message: "Password updated successfully! You can now sign in." };
 }
 
 export function logoutUser() {
   setCurrentUser(null);
+}
+
+export function loginOrRegisterGoogleUser(name: string, email: string): User {
+  const users = getUsers();
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = users.find((u) => u.email.toLowerCase() === normalizedEmail);
+
+  if (!user) {
+    user = {
+      id: uuidv4(),
+      name: name.trim() || "Google Student",
+      email: normalizedEmail,
+      password: "GOOGLE_OAUTH_USER",
+      role: "student",
+      createdAt: new Date().toISOString(),
+    };
+    users.push(user);
+    saveUsers(users);
+  }
+
+  const { password: _, ...safeUser } = user;
+  safeUser.role = "student";
+  setCurrentUser(safeUser as User);
+  return safeUser as User;
 }
