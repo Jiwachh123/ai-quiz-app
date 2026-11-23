@@ -1,14 +1,27 @@
-import { generateAdaptiveQuestions, AdaptiveQuestion, Difficulty } from "@/lib/adaptive-generator";
+import { generateAdaptiveQuestions, AdaptiveQuestion } from "@/lib/adaptive-generator";
+import { evaluateAdaptiveStep, AnswerSignal } from "@/lib/adaptive-engine";
+import {
+  Difficulty,
+  ConfidenceLevel,
+  ExamMode,
+  AdaptiveDecisionLogEntry,
+} from "@/types";
 import { NextResponse } from "next/server";
 import { decryptSession, encryptSession } from "@/lib/adaptive-session";
 
 interface QuizSession {
   sessionId: string;
   topic: string;
+  examMode?: ExamMode;
+  syllabusText?: string;
   difficulty: Difficulty;
   totalQuestions: number;
   questions: AdaptiveQuestion[];
   answers: number[];
+  questionTimes: number[];
+  confidences: ConfidenceLevel[];
+  recentHistory: AnswerSignal[];
+  decisionLog: AdaptiveDecisionLogEntry[];
   currentIndex: number;
   correctCount: number;
   consecutiveCorrect: number;
@@ -16,30 +29,17 @@ interface QuizSession {
   createdAt: number;
 }
 
-function getNextDifficulty(
-  current: Difficulty,
-  correctStreak: number,
-  wrongStreak: number
-): Difficulty {
-  const levels: Difficulty[] = ["easy", "medium", "hard"];
-  const currentIndex = levels.indexOf(current);
-
-  if (correctStreak >= 2) {
-    return levels[Math.min(currentIndex + 1, 2)];
-  }
-
-  if (wrongStreak >= 2) {
-    return levels[Math.max(currentIndex - 1, 0)];
-  }
-
-  return current;
-}
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
     const { sessionToken, questionId, answer } = body;
+    const timeTakenSec = Math.max(1, Math.round(Number(body.timeTakenSec) || 15));
+    const confidence: ConfidenceLevel = ["low", "medium", "high"].includes(
+      body.confidence
+    )
+      ? body.confidence
+      : "medium";
 
     if (
       typeof sessionToken !== "string" ||
@@ -62,14 +62,10 @@ export async function POST(request: Request) {
       session.currentIndex < 0 ||
       session.currentIndex >= session.questions.length
     ) {
-      return NextResponse.json(
-        { error: "Invalid quiz session" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid quiz session" }, { status: 400 });
     }
 
     const currentQuestion = session.questions[session.currentIndex];
-
     if (currentQuestion.id !== questionId) {
       return NextResponse.json(
         { error: "Question does not match the session" },
@@ -77,37 +73,60 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!Array.isArray(session.answers)) {
-      session.answers = [];
-    }
+    session.answers = Array.isArray(session.answers) ? session.answers : [];
+    session.questionTimes = Array.isArray(session.questionTimes)
+      ? session.questionTimes
+      : [];
+    session.confidences = Array.isArray(session.confidences)
+      ? session.confidences
+      : [];
+    session.recentHistory = Array.isArray(session.recentHistory)
+      ? session.recentHistory
+      : [];
+    session.decisionLog = Array.isArray(session.decisionLog)
+      ? session.decisionLog
+      : [];
+
     session.answers.push(answer);
+    session.questionTimes.push(timeTakenSec);
+    session.confidences.push(confidence);
 
     const isCorrect = answer === currentQuestion.correctAnswer;
-
     if (isCorrect) {
       session.correctCount += 1;
-      session.consecutiveCorrect += 1;
-      session.consecutiveWrong = 0;
-    } else {
-      session.consecutiveWrong += 1;
-      session.consecutiveCorrect = 0;
     }
 
-    const previousDifficulty = session.difficulty;
+    // Evaluate with Smarter 4-Level Adaptive Engine (6-9 window + streak + time + confidence)
+    const decision = evaluateAdaptiveStep({
+      questionNumber: session.currentIndex + 1,
+      questionText: currentQuestion.question,
+      subtopic: currentQuestion.subtopic || session.topic,
+      currentDifficulty: session.difficulty,
+      isCorrect,
+      timeTakenSec,
+      confidence,
+      correctStreak: session.consecutiveCorrect,
+      wrongStreak: session.consecutiveWrong,
+      recentHistory: session.recentHistory,
+    });
 
-    session.difficulty = getNextDifficulty(
-      session.difficulty,
-      session.consecutiveCorrect,
-      session.consecutiveWrong
-    );
-
-    if (session.difficulty !== previousDifficulty) {
-      session.consecutiveCorrect = 0;
-      session.consecutiveWrong = 0;
+    session.recentHistory.push({
+      isCorrect,
+      timeTakenSec,
+      confidence,
+      difficulty: session.difficulty,
+    });
+    // Keep last 9 answers in session token to keep token compact
+    if (session.recentHistory.length > 9) {
+      session.recentHistory = session.recentHistory.slice(-9);
     }
+
+    session.difficulty = decision.nextDifficulty;
+    session.consecutiveCorrect = decision.newCorrectStreak;
+    session.consecutiveWrong = decision.newWrongStreak;
+    session.decisionLog.push(decision.logEntry);
 
     session.currentIndex += 1;
-
     const completed = session.currentIndex >= session.totalQuestions;
 
     const result = {
@@ -118,6 +137,7 @@ export async function POST(request: Request) {
       subtopic: currentQuestion.subtopic || session.topic,
       verification: currentQuestion.verification,
       nextDifficulty: session.difficulty,
+      decisionEntry: decision.logEntry,
       correctCount: session.correctCount,
       answeredCount: session.currentIndex,
       totalQuestions: session.totalQuestions,
@@ -125,13 +145,16 @@ export async function POST(request: Request) {
     };
 
     if (completed) {
-      // Return full verified questions & user answers so client can permanently store the completed quiz & attempt
       return NextResponse.json({
         ...result,
         completedQuizData: {
           topic: session.topic,
+          examMode: session.examMode || "custom",
           questions: session.questions,
           answers: session.answers,
+          questionTimes: session.questionTimes,
+          confidences: session.confidences,
+          decisionLog: session.decisionLog,
         },
       });
     }
@@ -143,7 +166,9 @@ export async function POST(request: Request) {
       const newQuestions = await generateAdaptiveQuestions(
         session.topic,
         session.difficulty,
-        batchSize
+        batchSize,
+        session.examMode || "custom",
+        session.syllabusText
       );
 
       session.questions.push(...newQuestions);
