@@ -6,7 +6,7 @@ An AI-powered online quiz application built with **Next.js 15, TypeScript, Tailw
 
 - **User Authentication:** Separate Student and Teacher roles.
 - **AI Quiz Generation:** Generate questions using Google Gemini.
-- **Image to Quiz:** Upload or paste a screenshot or photo of a topic or syllabus and generate a quiz from it.
+- **Image to Quiz:** Upload or paste a screenshot or photo (or paste text) of a topic or syllabus and generate a quiz from it.
 - **Adaptive Difficulty:** Difficulty indicators for quiz questions.
 - **Student Dashboard:** View performance and learning analytics.
 - **Teacher Dashboard:** Create and manage quizzes.
@@ -125,7 +125,6 @@ This project is a working frontend MVP.
 - Implement secure server-side authentication.
 - Add dynamic adaptive question generation.
 - Introduce multiplayer and live quizzes.
-- Support PDF uploads for quiz generation.
 - Export quiz results as PDF reports.
 
 ## Author
