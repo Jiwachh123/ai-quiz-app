@@ -1,15 +1,25 @@
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
-const FALLBACK_SECRET = "adaptive-quiz-application-default-32-byte-secret-key-2026";
+
+// Local development only: a random secret that is never stored in the code.
+// Kept on globalThis so that hot reloads do not invalidate a running quiz.
+const devGlobal = globalThis as typeof globalThis & { quizDevSecret?: string };
+
+function getSecret(): string {
+  const secret = process.env.QUIZ_SESSION_SECRET;
+  if (secret && secret.length >= 32) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("QUIZ_SESSION_SECRET must be set to at least 32 characters");
+  }
+
+  devGlobal.quizDevSecret ??= randomBytes(32).toString("hex");
+  return devGlobal.quizDevSecret;
+}
 
 function getKey(): Buffer {
-  const secret =
-    process.env.QUIZ_SESSION_SECRET && process.env.QUIZ_SESSION_SECRET.length >= 16
-      ? process.env.QUIZ_SESSION_SECRET
-      : FALLBACK_SECRET;
-
-  return createHash("sha256").update(secret).digest();
+  return createHash("sha256").update(getSecret()).digest();
 }
 
 export function encryptSession(data: unknown): string {

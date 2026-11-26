@@ -6,6 +6,7 @@ An AI-powered online quiz application built with **Next.js 15, TypeScript, Tailw
 
 - **User Authentication:** Separate Student and Teacher roles.
 - **AI Quiz Generation:** Generate questions using Google Gemini.
+- **Image to Quiz:** Upload or paste a screenshot or photo of a topic or syllabus and generate a quiz from it.
 - **Adaptive Difficulty:** Difficulty indicators for quiz questions.
 - **Student Dashboard:** View performance and learning analytics.
 - **Teacher Dashboard:** Create and manage quizzes.
@@ -57,6 +58,19 @@ NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
 Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 **Security note:** The `NEXT_PUBLIC_` prefix exposes the key to the browser. This configuration should only be used for experimentation. Before deploying publicly, move Gemini API calls to server-side code and use a server-only environment variable such as `GEMINI_API_KEY`.
+
+**Image to Quiz** reads images on the server. Add a server-only key (Groq is used as a backup if set):
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
+```
+
+For deployment, also set `QUIZ_SESSION_SECRET` (at least 32 random characters). Without it, quizzes will not start in production. Generate one with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
 ### 4. Start the development server
 

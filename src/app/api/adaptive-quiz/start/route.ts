@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       sessionId: uuidv4(),
       topic,
       examMode,
-      syllabusText: syllabusText ? syllabusText.slice(0, 1500) : undefined,
+      syllabusText: syllabusText ? syllabusText.slice(0, 3500) : undefined,
       difficulty,
       totalQuestions,
       questions,

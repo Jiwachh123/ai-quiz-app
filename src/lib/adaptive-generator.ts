@@ -160,8 +160,7 @@ export async function callLLMJson(prompt: string, temperature = 0.4): Promise<st
   if (groqApiKey) {
     const groqModels = [
       "openai/gpt-oss-20b",
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
+      "openai/gpt-oss-120b",
     ];
     for (const gModel of groqModels) {
       try {

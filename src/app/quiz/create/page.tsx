@@ -11,6 +11,7 @@ import {
   updateAttemptFeedback,
 } from "@/lib/storage";
 import { downloadSingleQuizReportPdf } from "@/lib/pdf-report";
+import { compressImage } from "@/lib/image";
 import {
   User,
   QuizAttempt,
@@ -36,6 +37,7 @@ import {
   Clock,
   FileText,
   Upload,
+  ImageIcon,
   Gauge,
   Download,
   TrendingUp,
@@ -94,6 +96,7 @@ function CreateQuizContent() {
   const [syllabusText, setSyllabusText] = useState("");
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [pdfNotice, setPdfNotice] = useState("");
+  const [readingImage, setReadingImage] = useState(false);
 
   // Active quiz state
   const [sessionToken, setSessionToken] = useState("");
@@ -199,6 +202,68 @@ function CreateQuizContent() {
     }
   };
 
+  const handleImages = async (files: File[]) => {
+    if (files.length === 0 || readingImage) return;
+    if (files.length > 3) {
+      setError("Please choose at most 3 images at a time.");
+      return;
+    }
+    setReadingImage(true);
+    setPdfNotice("");
+    setError("");
+
+    try {
+      const formData = new FormData();
+      for (const file of files) {
+        formData.append("images", await compressImage(file), "image.jpg");
+      }
+      const res = await fetch("/api/extract-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not read the image.");
+
+      if (data.text) {
+        setSyllabusText(data.text);
+        if (data.topic) {
+          setTopic((current) => current.trim() || data.topic);
+        }
+        setPdfNotice(
+          "Text read from your image. Please check it below, then start the quiz."
+        );
+      } else if (data.warning) {
+        setPdfNotice(data.warning);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not read the image.");
+    } finally {
+      setReadingImage(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ""; // allows choosing the same image again
+    handleImages(files);
+  };
+
+  // Lets the user paste a screenshot (Ctrl+V) while the syllabus mode is open
+  useEffect(() => {
+    if (examMode !== "syllabus" || currentQuestion) return;
+
+    const onPaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files || []).filter((file) =>
+        file.type.startsWith("image/")
+      );
+      if (files.length === 0) return;
+      e.preventDefault();
+      handleImages(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  });
+
   const fetchAiFeedbackForAttempt = async (
     attempt: QuizAttempt,
     isLoggedIn: boolean
@@ -257,11 +322,11 @@ function CreateQuizContent() {
   const handleGenerate = async (overrideTopic?: string) => {
     const targetTopic = (overrideTopic ?? topic).trim();
     if (!targetTopic) {
-      setError("Please enter a topic, pick a subject, or upload a syllabus.");
+      setError("Please enter a topic, pick a subject, or upload a syllabus or image.");
       return;
     }
     if (examMode === "syllabus" && syllabusText.trim().length < 20) {
-      setError("Please upload a PDF/TXT file or paste syllabus text (at least 20 characters).");
+      setError("Please upload a PDF/TXT file or image, or paste syllabus text (at least 20 characters).");
       return;
     }
 
@@ -1077,7 +1142,7 @@ function CreateQuizContent() {
                   { id: "custom", label: "Custom Topic", icon: Sparkles },
                   { id: "gate", label: "GATE CSE Mode", icon: GraduationCap },
                   { id: "beu", label: "BEU Subjects", icon: BookOpen },
-                  { id: "syllabus", label: "PDF / Syllabus", icon: FileText },
+                  { id: "syllabus", label: "Image / PDF / Syllabus", icon: FileText },
                 ].map((m) => {
                   const Icon = m.icon;
                   const active = examMode === m.id;
@@ -1158,8 +1223,25 @@ function CreateQuizContent() {
               <div className="p-4 rounded-xl bg-slate-950 border border-indigo-500/30 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-indigo-300">
-                    Upload PDF / TXT Syllabus or Paste Notes
+                    Upload a Screenshot, Photo, PDF or TXT, or Paste Notes
                   </p>
+                  <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold cursor-pointer transition">
+                    {readingImage ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <ImageIcon className="w-3.5 h-3.5" />
+                    )}
+                    <span>{readingImage ? "Reading image..." : "Upload Image"}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      disabled={readingImage}
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                  </label>
                   <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer transition">
                     {uploadingPdf ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1174,7 +1256,11 @@ function CreateQuizContent() {
                       className="hidden"
                     />
                   </label>
+                  </div>
                 </div>
+                <p className="text-[11px] text-slate-500">
+                  Up to 3 images. On a computer you can also paste a screenshot with Ctrl+V.
+                </p>
                 {pdfNotice && (
                   <p className="text-xs text-emerald-300">{pdfNotice}</p>
                 )}
@@ -1182,7 +1268,7 @@ function CreateQuizContent() {
                   rows={4}
                   value={syllabusText}
                   onChange={(e) => setSyllabusText(e.target.value)}
-                  placeholder="Extracted PDF text will appear here, or you can paste your syllabus / unit topics directly..."
+                  placeholder="Text from your image or PDF will appear here, or you can paste your syllabus / unit topics directly..."
                   className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-xl text-xs text-slate-200 outline-none"
                 />
               </div>
@@ -1275,7 +1361,7 @@ function CreateQuizContent() {
 
             <button
               onClick={() => handleGenerate()}
-              disabled={generating}
+              disabled={generating || readingImage}
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold transition disabled:opacity-60 shadow-lg shadow-indigo-600/25"
             >
               {generating ? (
