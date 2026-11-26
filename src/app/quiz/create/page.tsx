@@ -12,6 +12,7 @@ import {
 } from "@/lib/storage";
 import { downloadSingleQuizReportPdf } from "@/lib/pdf-report";
 import { compressImage } from "@/lib/image";
+import { AnalysisInsights, QuestionReview } from "@/components/QuizReport";
 import { prepareSound, playAnswerSound } from "@/lib/answer-sounds";
 import CorrectCelebration from "@/components/CorrectCelebration";
 import {
@@ -94,6 +95,8 @@ function CreateQuizContent() {
   const [questionElapsedSec, setQuestionElapsedSec] = useState<number>(0);
   const [totalRemainingSec, setTotalRemainingSec] = useState<number | null>(null);
   const questionStartRef = useRef<number>(Date.now());
+  // Answer keys corrected by "Verify", applied to the final analysis
+  const correctionsRef = useRef<Record<string, { correctAnswer: number; explanation: string }>>({});
 
   useEffect(() => {
     const currentUser = getCurrentUser();
@@ -273,6 +276,7 @@ function CreateQuizContent() {
 
     setError("");
     setGenerating(true);
+    correctionsRef.current = {};
     setQuizStartTime(Date.now());
     questionStartRef.current = Date.now();
     setQuestionElapsedSec(0);
@@ -357,7 +361,10 @@ function CreateQuizContent() {
 
       if (data.completed && data.completedQuizData) {
         const timeTaken = Math.round((Date.now() - quizStartTime) / 1000);
-        const finalQuestions = data.completedQuizData.questions as Question[];
+        const finalQuestions = (data.completedQuizData.questions as Question[]).map((q) => ({
+          ...q,
+          ...correctionsRef.current[q.id],
+        }));
         const finalAnswers = data.completedQuizData.answers as number[];
         const finalTimes = data.completedQuizData.questionTimes as number[];
         const finalConfidences = data.completedQuizData.confidences as ConfidenceLevel[];
@@ -453,6 +460,10 @@ function CreateQuizContent() {
       if (!res.ok) throw new Error(audit.error || "Verification failed");
 
       if (audit.changed) {
+        correctionsRef.current[currentQuestion.id] = {
+          correctAnswer: audit.verifiedCorrectAnswer,
+          explanation: audit.verificationExplanation,
+        };
         const userNowCorrect = selectedAnswer === audit.verifiedCorrectAnswer;
         setFeedback((prev: any) => ({
           ...prev,
@@ -583,7 +594,7 @@ function CreateQuizContent() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg transition"
               >
                 <Download className="w-4 h-4" />
-                <span>Download Report (PDF)</span>
+                <span>Download Full Analysis (PDF)</span>
               </button>
             </div>
 
@@ -769,61 +780,8 @@ function CreateQuizContent() {
               </div>
             )}
 
-          {/* FULL QUESTION REVIEW */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h2 className="text-lg font-bold text-white">
-              Question-by-Question Review & Explanations
-            </h2>
-            {savedAttempt.questionsSnapshot.map((q, idx) => {
-              const userAns = savedAttempt.answers[idx];
-              const isCorrect = userAns === q.correctAnswer;
-              return (
-                <div
-                  key={q.id || idx}
-                  className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>
-                      Q{idx + 1} • {q.subtopic || q.topic} ({q.difficulty.toUpperCase()})
-                      {savedAttempt.questionTimes?.[idx]
-                        ? ` • ${savedAttempt.questionTimes[idx]}s`
-                        : ""}
-                    </span>
-                    <span
-                      className={
-                        isCorrect
-                          ? "text-emerald-400 font-semibold"
-                          : "text-rose-400 font-semibold"
-                      }
-                    >
-                      {isCorrect ? "✓ Correct" : "✗ Incorrect"}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-white">{q.question}</p>
-                  <div className="grid sm:grid-cols-2 gap-2 pt-1">
-                    {q.options.map((opt, oIdx) => (
-                      <div
-                        key={oIdx}
-                        className={`text-xs p-2.5 rounded-lg border ${
-                          oIdx === q.correctAnswer
-                            ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200 font-medium"
-                            : oIdx === userAns
-                            ? "border-rose-500/50 bg-rose-500/10 text-rose-200"
-                            : "border-slate-800 text-slate-400"
-                        }`}
-                      >
-                        {String.fromCharCode(65 + oIdx)}. {opt}
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-300 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                    <span className="font-semibold text-indigo-300">Explanation: </span>
-                    {q.explanation}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+          <AnalysisInsights attempt={savedAttempt} />
+          <QuestionReview attempt={savedAttempt} />
         </main>
       ) : currentQuestion ? (
         /* ACTIVE ADAPTIVE QUIZ SCREEN */

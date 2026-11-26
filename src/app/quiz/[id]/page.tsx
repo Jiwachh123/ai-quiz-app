@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { downloadSingleQuizReportPdf } from "@/lib/pdf-report";
+import { AnalysisInsights, QuestionReview } from "@/components/QuizReport";
 import { prepareSound, playAnswerSound } from "@/lib/answer-sounds";
 import CorrectCelebration from "@/components/CorrectCelebration";
 import {
@@ -25,6 +27,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   Target,
+  Download,
 } from "lucide-react";
 
 export default function TakeQuizPage() {
@@ -45,6 +48,8 @@ export default function TakeQuizPage() {
     null
   );
   const [startTime, setStartTime] = useState(Date.now());
+  const questionStartRef = useRef(Date.now());
+  const questionTimesRef = useRef<number[]>([]);
   const [disputing, setDisputing] = useState(false);
   const [disputeMessage, setDisputeMessage] = useState<string | null>(null);
 
@@ -62,6 +67,7 @@ export default function TakeQuizPage() {
       return;
     }
     setQuiz(found);
+    questionStartRef.current = Date.now();
     setPastAttempts(getAttemptsByQuiz(quizId, currentUser.id));
   }, [quizId, router]);
 
@@ -76,6 +82,10 @@ export default function TakeQuizPage() {
     if (selected === null || !currentQuestion) return;
     setShowFeedback(true);
     setDisputeMessage(null);
+    questionTimesRef.current[currentIndex] = Math.max(
+      1,
+      Math.round((Date.now() - questionStartRef.current) / 1000)
+    );
 
     const isCorrect = selected === currentQuestion.correctAnswer;
     playAnswerSound(isCorrect);
@@ -154,7 +164,8 @@ export default function TakeQuizPage() {
       const analysis = buildQuizAnalysis(
         quiz.questions,
         updatedAnswers,
-        quiz.topic
+        quiz.topic,
+        { questionTimes: questionTimesRef.current, totalTimeTaken: timeTaken }
       );
 
       const attempt: QuizAttempt = {
@@ -170,6 +181,7 @@ export default function TakeQuizPage() {
         difficultyProgression: quiz.questions.map((q) => q.difficulty),
         completedAt: new Date().toISOString(),
         timeTaken,
+        questionTimes: [...questionTimesRef.current],
         questionsSnapshot: quiz.questions,
         analysis,
       };
@@ -179,6 +191,7 @@ export default function TakeQuizPage() {
       setIsFinished(true);
     } else {
       setCurrentIndex((prev) => prev + 1);
+      questionStartRef.current = Date.now();
       setSelected(null);
       setShowFeedback(false);
       setDisputeMessage(null);
@@ -195,6 +208,8 @@ export default function TakeQuizPage() {
     setIsFinished(false);
     setCompletedAttempt(null);
     setStartTime(Date.now());
+    questionStartRef.current = Date.now();
+    questionTimesRef.current = [];
   };
 
   if (!user || !quiz || !currentQuestion) {
@@ -245,6 +260,25 @@ export default function TakeQuizPage() {
               )}
             </div>
 
+            <div className="grid grid-cols-3 gap-3 mb-6 text-xs text-slate-400">
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <p className="text-lg font-bold text-white">
+                  {completedAttempt.correctCount}/{completedAttempt.totalQuestions}
+                </p>
+                Correct
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <p className="text-lg font-bold text-white">
+                  {completedAttempt.analysis.averageTimePerQuestion}s
+                </p>
+                Avg / Question
+              </div>
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <p className="text-lg font-bold text-white">{completedAttempt.timeTaken}s</p>
+                Total Time
+              </div>
+            </div>
+
             <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-left mb-6">
               <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-1">
                 Quiz Analysis & Weak-Area Summary
@@ -255,6 +289,13 @@ export default function TakeQuizPage() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => downloadSingleQuizReportPdf(completedAttempt, user.name)}
+                className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-sm transition"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Full Analysis (PDF)</span>
+              </button>
               <button
                 onClick={handleRetakeImmediately}
                 className="inline-flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-semibold text-sm transition"
@@ -283,6 +324,9 @@ export default function TakeQuizPage() {
               </Link>
             </div>
           </div>
+
+          <AnalysisInsights attempt={completedAttempt} />
+          <QuestionReview attempt={completedAttempt} />
         </div>
       </div>
     );

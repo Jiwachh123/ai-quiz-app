@@ -134,8 +134,11 @@ export function buildQuizAnalysis(
     options?.questionTimes && options.questionTimes.length > 0
       ? options.questionTimes.filter((t) => typeof t === "number" && t >= 0)
       : [];
+  // Prefer time spent answering; total time also includes reading explanations
   const totalSec =
-    options?.totalTimeTaken ?? validTimes.reduce((acc, t) => acc + t, 0);
+    validTimes.length > 0
+      ? validTimes.reduce((acc, t) => acc + t, 0)
+      : options?.totalTimeTaken ?? 0;
   const averageTimePerQuestion =
     questions.length > 0
       ? Math.round((totalSec / questions.length) * 10) / 10

@@ -14,6 +14,7 @@ import {
   downloadOverallPerformanceReportPdf,
   downloadSingleQuizReportPdf,
 } from "@/lib/pdf-report";
+import { AnalysisInsights, QuestionReview } from "@/components/QuizReport";
 import { User, Quiz, QuizAttempt, UserStats, Difficulty } from "@/types";
 import {
   Brain,
@@ -683,26 +684,8 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Questions & Explanations
-                </h4>
-                {(selectedAttempt.questionsSnapshot || []).map((q, idx) => (
-                  <div
-                    key={q.id || idx}
-                    className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5 text-xs"
-                  >
-                    <p className="font-semibold text-white">
-                      Q{idx + 1}. {q.question}
-                    </p>
-                    <p className="text-emerald-300">
-                      Correct: {String.fromCharCode(65 + q.correctAnswer)}.{" "}
-                      {q.options[q.correctAnswer]}
-                    </p>
-                    <p className="text-slate-400">{q.explanation}</p>
-                  </div>
-                ))}
-              </div>
+              <AnalysisInsights attempt={selectedAttempt} />
+              <QuestionReview attempt={selectedAttempt} />
             </div>
           </div>
         )}
