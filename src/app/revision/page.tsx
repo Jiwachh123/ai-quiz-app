@@ -16,7 +16,6 @@ import {
   Layers,
   CheckCircle2,
   XCircle,
-  Sparkles,
   Clock,
   RotateCcw,
 } from "lucide-react";
@@ -208,7 +207,6 @@ export default function SmartRevisionPage() {
               href="/quiz/create"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold"
             >
-              <Sparkles className="w-4 h-4" />
               <span>Take a New Adaptive Quiz</span>
             </Link>
           </div>

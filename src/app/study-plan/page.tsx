@@ -15,7 +15,6 @@ import { v4 as uuidv4 } from "uuid";
 import {
   ArrowLeft,
   Calendar,
-  Sparkles,
   Loader2,
   CheckCircle2,
   Circle,
@@ -158,7 +157,6 @@ export default function StudyPlanPage() {
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
                 <span>{plan ? "Regenerate 7-Day Plan" : "Generate AI 7-Day Plan"}</span>
               </>
             )}

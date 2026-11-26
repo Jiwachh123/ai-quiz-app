@@ -84,7 +84,7 @@ export interface QuizAttempt {
   topic: string;
   examMode?: ExamMode;
   userId: string;
-  answers: number[]; // selected option indexes
+  answers: number[]; // selected option indexes, -1 = not attempted
   questionTimes?: number[]; // seconds per question
   confidences?: ConfidenceLevel[];
   score: number;
@@ -161,18 +161,4 @@ export interface UserStats {
     score: number;
     date: string;
   }[];
-}
-
-export interface LeaderboardEntry {
-  userId: string;
-  name: string;
-  totalQuizzes: number;
-  totalQuestions: number;
-  averageScore: number;
-  bestScore: number;
-  overallAccuracy: number;
-  highestDifficulty: Difficulty;
-  points: number;
-  isCurrentUser?: boolean;
-  isBenchmark?: boolean;
 }

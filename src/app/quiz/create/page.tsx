@@ -13,7 +13,7 @@ import {
 import { downloadSingleQuizReportPdf } from "@/lib/pdf-report";
 import { compressImage } from "@/lib/image";
 import { AnalysisInsights, QuestionReview } from "@/components/QuizReport";
-import { prepareSound, playAnswerSound } from "@/lib/answer-sounds";
+import { prepareSound, playAnswerSound, playWarningSound } from "@/lib/answer-sounds";
 import CorrectCelebration from "@/components/CorrectCelebration";
 import {
   User,
@@ -29,7 +29,7 @@ import {
   Brain,
   Loader2,
   ArrowLeft,
-  Sparkles,
+  PenLine,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -93,8 +93,9 @@ function CreateQuizContent() {
   // Timers
   const [quizStartTime, setQuizStartTime] = useState<number>(Date.now());
   const [questionElapsedSec, setQuestionElapsedSec] = useState<number>(0);
-  const [totalRemainingSec, setTotalRemainingSec] = useState<number | null>(null);
   const questionStartRef = useRef<number>(Date.now());
+  // Question already auto-submitted by the timer (prevents repeat submissions)
+  const timedOutRef = useRef("");
   // Answer keys corrected by "Verify", applied to the final analysis
   const correctionsRef = useRef<Record<string, { correctAnswer: number; explanation: string }>>({});
 
@@ -134,11 +135,7 @@ function CreateQuizContent() {
           Math.max(1, Math.floor((Date.now() - questionStartRef.current) / 1000))
         );
       }
-      setTotalRemainingSec((prev) => {
-        if (prev === null) return null;
-        return Math.max(0, prev - 1);
-      });
-    }, 1000);
+    }, 250);
 
     return () => clearInterval(interval);
   }, [currentQuestion, quizFinished, feedback]);
@@ -277,10 +274,8 @@ function CreateQuizContent() {
     setError("");
     setGenerating(true);
     correctionsRef.current = {};
-    setQuizStartTime(Date.now());
-    questionStartRef.current = Date.now();
-    setQuestionElapsedSec(0);
-    setTotalRemainingSec(timerPerQuestion > 0 ? timerPerQuestion * count : null);
+    prepareSound(); // allows the timer warning sound to play later
+    timedOutRef.current = "";
 
     try {
       const response = await fetch("/api/adaptive-quiz/start", {
@@ -302,11 +297,8 @@ function CreateQuizContent() {
 
       if (overrideTopic) setTopic(overrideTopic);
       setSessionToken(data.sessionToken);
-      setCurrentQuestion(data.question);
-      setSelectedAnswer(null);
-      setConfidence("medium");
-      setFeedback(null);
-      setDisputeResult(null);
+      setQuizStartTime(Date.now());
+      goToQuestion(data.question);
       setAnsweredCount(0);
       setCorrectCount(0);
       setQuizFinished(false);
@@ -320,8 +312,21 @@ function CreateQuizContent() {
     }
   };
 
-  const handleAnswer = async () => {
-    if (selectedAnswer === null || !currentQuestion || checkingAnswer) return;
+  const goToQuestion = (question: any) => {
+    setCurrentQuestion(question);
+    setPendingQuestion(null);
+    setSelectedAnswer(null);
+    setConfidence("medium");
+    setFeedback(null);
+    setDisputeResult(null);
+    setError("");
+    questionStartRef.current = Date.now();
+    setQuestionElapsedSec(0);
+  };
+
+  // answer -1 means "not attempted". With moveOn, the feedback step is skipped.
+  const submitAnswer = async (answer: number, moveOn = false) => {
+    if (!currentQuestion || checkingAnswer || feedback) return;
 
     prepareSound();
     setCelebrating(false);
@@ -329,10 +334,12 @@ function CreateQuizContent() {
     setError("");
     setDisputeResult(null);
 
-    const timeSpentOnThisQuestion = Math.max(
+    const secondsSpent = Math.max(
       1,
       Math.round((Date.now() - questionStartRef.current) / 1000)
     );
+    const timeSpentOnThisQuestion =
+      timerPerQuestion > 0 ? Math.min(secondsSpent, timerPerQuestion) : secondsSpent;
 
     try {
       const response = await fetch("/api/adaptive-quiz/answer", {
@@ -341,7 +348,7 @@ function CreateQuizContent() {
         body: JSON.stringify({
           sessionToken,
           questionId: currentQuestion.id,
-          answer: selectedAnswer,
+          answer,
           timeTakenSec: timeSpentOnThisQuestion,
           confidence,
         }),
@@ -352,9 +359,11 @@ function CreateQuizContent() {
         throw new Error(data.error || "Could not check your answer");
       }
 
-      setFeedback(data);
-      playAnswerSound(data.isCorrect);
-      setCelebrating(data.isCorrect);
+      if (!moveOn) {
+        setFeedback(data);
+        playAnswerSound(data.isCorrect);
+        setCelebrating(data.isCorrect);
+      }
       setSessionToken(data.sessionToken || sessionToken);
       setAnsweredCount(data.answeredCount);
       setCorrectCount(data.correctCount);
@@ -425,6 +434,8 @@ function CreateQuizContent() {
         setSavedAttempt(createdAttempt);
         setQuizFinished(true);
         fetchAiFeedbackForAttempt(createdAttempt, !!user);
+      } else if (moveOn) {
+        goToQuestion(data.question);
       } else {
         setPendingQuestion(data.question || null);
       }
@@ -498,16 +509,27 @@ function CreateQuizContent() {
   };
 
   const handleNextQuestion = () => {
-    if (!pendingQuestion) return;
-    setCurrentQuestion(pendingQuestion);
-    setPendingQuestion(null);
-    setSelectedAnswer(null);
-    setConfidence("medium");
-    setFeedback(null);
-    setDisputeResult(null);
-    questionStartRef.current = Date.now();
-    setQuestionElapsedSec(0);
+    if (pendingQuestion) goToQuestion(pendingQuestion);
   };
+
+  const secondsLeft =
+    timerPerQuestion > 0 ? Math.max(0, timerPerQuestion - questionElapsedSec) : null;
+
+  // Beep in the last 5 seconds, then move to the next question when time is over
+  useEffect(() => {
+    if (!currentQuestion || quizFinished || feedback || checkingAnswer) return;
+    if (secondsLeft === null || questionElapsedSec === 0) return;
+
+    if (secondsLeft > 0) {
+      if (secondsLeft <= 5) playWarningSound();
+    } else if (timedOutRef.current !== currentQuestion.id) {
+      timedOutRef.current = currentQuestion.id;
+      // A selected option is kept; otherwise the question is not attempted
+      submitAnswer(selectedAnswer ?? -1, true);
+    }
+    // Runs once for each passing second of each question
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionElapsedSec, currentQuestion]);
 
   if (!authChecked) {
     return (
@@ -642,7 +664,6 @@ function CreateQuizContent() {
             {/* AI-Generated Personalized Feedback */}
             <div className="mt-4 p-5 rounded-xl bg-gradient-to-r from-indigo-500/15 via-purple-500/10 to-slate-900 border border-indigo-500/30">
               <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2">
-                <Sparkles className="w-4 h-4" />
                 <span>AI-Generated Personalized Feedback</span>
               </div>
               {loadingAiFeedback ? (
@@ -707,7 +728,6 @@ function CreateQuizContent() {
                     href="/study-plan"
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold"
                   >
-                    <Sparkles className="w-4 h-4" />
                     <span>Generate 7-Day Study Plan</span>
                   </Link>
                   <Link
@@ -726,7 +746,6 @@ function CreateQuizContent() {
                   }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
                 >
-                  <Sparkles className="w-4 h-4" />
                   <span>Take Another Quiz</span>
                 </button>
               )}
@@ -759,10 +778,18 @@ function CreateQuizContent() {
                           </span>
                           <span
                             className={`text-xs font-semibold ${
-                              entry.isCorrect ? "text-emerald-400" : "text-rose-400"
+                              savedAttempt.answers[entry.questionNumber - 1] === -1
+                                ? "text-amber-400"
+                                : entry.isCorrect
+                                ? "text-emerald-400"
+                                : "text-rose-400"
                             }`}
                           >
-                            {entry.isCorrect ? "Correct" : "Wrong"}
+                            {savedAttempt.answers[entry.questionNumber - 1] === -1
+                              ? "Not attempted"
+                              : entry.isCorrect
+                              ? "Correct"
+                              : "Wrong"}
                           </span>
                           <span className="text-xs text-slate-500">•</span>
                           <span className="text-xs text-slate-400">
@@ -821,16 +848,16 @@ function CreateQuizContent() {
                   <Clock className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Q: {questionElapsedSec}s</span>
                 </div>
-                {totalRemainingSec !== null && (
+                {secondsLeft !== null && (
                   <div
                     className={`px-3 py-1.5 rounded-xl border text-xs font-mono flex items-center gap-1.5 ${
-                      totalRemainingSec <= 30
-                        ? "bg-rose-500/15 border-rose-500/40 text-rose-300"
+                      secondsLeft <= 5
+                        ? "bg-rose-500/15 border-rose-500/40 text-rose-300 animate-pulse"
                         : "bg-slate-950 border-slate-800 text-amber-300"
                     }`}
                   >
                     <Gauge className="w-3.5 h-3.5" />
-                    <span>Left: {formatSec(totalRemainingSec)}</span>
+                    <span>Left: {formatSec(secondsLeft)}</span>
                   </div>
                 )}
               </div>
@@ -842,6 +869,12 @@ function CreateQuizContent() {
                 style={{ width: `${(answeredCount / count) * 100}%` }}
               />
             </div>
+
+            {error && (
+              <div className="mb-5 p-3.5 bg-rose-500/10 text-rose-300 text-sm rounded-xl border border-rose-500/30">
+                {error}
+              </div>
+            )}
 
             <h2 className="text-xl font-bold text-white mb-6">
               {currentQuestion.question}
@@ -975,13 +1008,22 @@ function CreateQuizContent() {
                 Next Adaptive Question →
               </button>
             ) : (
-              <button
-                onClick={handleAnswer}
-                disabled={selectedAnswer === null || checkingAnswer}
-                className="w-full mt-6 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 transition"
-              >
-                {checkingAnswer ? "Evaluating & Adapting..." : "Submit Answer"}
-              </button>
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={() => submitAnswer(-1, true)}
+                  disabled={checkingAnswer}
+                  className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-semibold disabled:opacity-50 transition"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => selectedAnswer !== null && submitAnswer(selectedAnswer)}
+                  disabled={selectedAnswer === null || checkingAnswer}
+                  className="flex-1 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 transition"
+                >
+                  {checkingAnswer ? "Evaluating & Adapting..." : "Submit Answer"}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -1025,7 +1067,6 @@ function CreateQuizContent() {
 
           <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 md:p-8 shadow-xl space-y-6">
             <div className="flex items-center gap-2.5">
-              <Sparkles className="w-6 h-6 text-indigo-400" />
               <div>
                 <h1 className="text-xl font-bold text-white">
                   Configure Your Adaptive Quiz
@@ -1043,7 +1084,7 @@ function CreateQuizContent() {
               </label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: "custom", label: "Custom Topic", icon: Sparkles },
+                  { id: "custom", label: "Custom Topic", icon: PenLine },
                   { id: "syllabus", label: "Image / Text", icon: ImageIcon },
                 ].map((m) => {
                   const Icon = m.icon;
@@ -1213,7 +1254,6 @@ function CreateQuizContent() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-5 h-5" />
                   <span>Start Adaptive Quiz</span>
                 </>
               )}

@@ -6,7 +6,6 @@ import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import {
   Brain,
-  Sparkles,
   ShieldCheck,
   BarChart3,
   RotateCcw,
@@ -76,7 +75,6 @@ export default function HomePage() {
 
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium mb-8">
-          <Sparkles className="w-3.5 h-3.5" />
           <span>AI Adaptive Assessment • Guest Mode & OTP-Secured Student Accounts</span>
         </div>
 
@@ -97,7 +95,6 @@ export default function HomePage() {
             href="/quiz/create"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-semibold text-white shadow-xl shadow-indigo-600/30 transition"
           >
-            <Sparkles className="w-4 h-4" />
             <span>Take Quiz Without Login (Guest)</span>
             <ArrowRight className="w-4 h-4" />
           </Link>

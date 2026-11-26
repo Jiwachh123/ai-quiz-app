@@ -27,12 +27,10 @@ import {
   Play,
   RotateCcw,
   TrendingUp,
-  Sparkles,
   Eye,
   AlertTriangle,
   Download,
   Calendar,
-  Award,
   Layers,
   CheckCircle2,
   Clock,
@@ -140,13 +138,6 @@ export default function DashboardPage() {
             >
               <Calendar className="w-3.5 h-3.5" />
               <span>7-Day Plan</span>
-            </Link>
-            <Link
-              href="/leaderboard"
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition"
-            >
-              <Award className="w-3.5 h-3.5" />
-              <span>Leaderboard</span>
             </Link>
             <button
               onClick={() => downloadOverallPerformanceReportPdf(user, stats, attempts)}
@@ -483,7 +474,6 @@ export default function DashboardPage() {
                   href="/quiz/create"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold"
                 >
-                  <Sparkles className="w-4 h-4" />
                   <span>Start Adaptive Quiz</span>
                 </Link>
               </div>

@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       typeof sessionToken !== "string" ||
       typeof questionId !== "string" ||
       !Number.isInteger(answer) ||
-      answer < 0 ||
+      answer < -1 || // -1 = skipped or time over
       answer > 3
     ) {
       return NextResponse.json(
@@ -124,6 +124,9 @@ export async function POST(request: Request) {
     session.difficulty = decision.nextDifficulty;
     session.consecutiveCorrect = decision.newCorrectStreak;
     session.consecutiveWrong = decision.newWrongStreak;
+    if (answer === -1) {
+      decision.logEntry.reason = `Question not attempted. Next difficulty: ${decision.nextDifficulty}.`;
+    }
     session.decisionLog.push(decision.logEntry);
 
     session.currentIndex += 1;

@@ -13,12 +13,15 @@ export function getInsights(attempt: QuizAttempt): string[] {
 
   const insights: string[] = [];
 
-  const wrong = numbers((i) => !isRight(i));
-  insights.push(
-    wrong ? `Review these wrong answers: ${wrong}.` : "You answered every question correctly."
-  );
+  const isSkipped = (i: number) => attempt.answers[i] === -1;
+  const wrong = numbers((i) => !isRight(i) && !isSkipped(i));
+  const skipped = numbers(isSkipped);
 
-  const overconfident = numbers((i) => !isRight(i) && attempt.confidences?.[i] === "high");
+  if (wrong) insights.push(`Review these wrong answers: ${wrong}.`);
+  if (skipped) insights.push(`Not attempted: ${skipped}. Try these again.`);
+  if (!wrong && !skipped) insights.push("You answered every question correctly.");
+
+  const overconfident = numbers((i) => !isRight(i) && !isSkipped(i) && attempt.confidences?.[i] === "high");
   if (overconfident) {
     insights.push(
       `You were highly confident but wrong in ${overconfident}. Check these concepts first.`

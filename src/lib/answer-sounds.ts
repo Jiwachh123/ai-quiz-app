@@ -40,3 +40,9 @@ export function playAnswerSound(isCorrect: boolean) {
     playTone(155, 0.18, 0.35, "square");
   }
 }
+
+/** Short beep for the last seconds of a timed question. */
+export function playWarningSound() {
+  prepareSound();
+  playTone(880, 0, 0.12, "triangle");
+}

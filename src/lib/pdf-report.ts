@@ -294,7 +294,9 @@ export function downloadSingleQuizReportPdf(attempt: QuizAttempt, studentName: s
 
   heading("SCORE & TIME");
   add(
-    `Accuracy: ${attempt.score}% | Correct: ${attempt.correctCount}/${attempt.totalQuestions} | Total time: ${attempt.timeTaken}s`
+    `Accuracy: ${attempt.score}% | Correct: ${attempt.correctCount}/${attempt.totalQuestions} | Not attempted: ${
+      attempt.answers.filter((a) => a === -1).length
+    } | Total time: ${attempt.timeTaken}s`
   );
   add(
     `Average per question: ${analysis.averageTimePerQuestion}s | Fastest: ${analysis.fastestTimeSec}s | Slowest: ${analysis.slowestTimeSec}s`
@@ -325,7 +327,9 @@ export function downloadSingleQuizReportPdf(attempt: QuizAttempt, studentName: s
     const seconds = attempt.questionTimes?.[idx];
 
     add(
-      `Q${idx + 1} - ${isCorrect ? "Correct" : "Incorrect"} | ${q.difficulty.toUpperCase()}${
+      `Q${idx + 1} - ${
+        userAnswer === -1 ? "Not attempted" : isCorrect ? "Correct" : "Incorrect"
+      } | ${q.difficulty.toUpperCase()}${
         seconds ? ` | ${seconds}s` : ""
       }`,
       { size: 9, bold: true, color: isCorrect ? green : red }

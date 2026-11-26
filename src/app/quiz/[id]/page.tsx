@@ -147,11 +147,12 @@ export default function TakeQuizPage() {
     }
   };
 
-  const handleNext = () => {
-    if (!quiz || !currentQuestion || selected === null || !user) return;
+  // answer -1 means the question was skipped
+  const goForward = (answer: number) => {
+    if (!quiz || !currentQuestion || !user) return;
     setCelebrating(false);
 
-    const updatedAnswers = [...answers, selected];
+    const updatedAnswers = [...answers, answer];
     setAnswers(updatedAnswers);
 
     if (currentIndex + 1 >= quiz.questions.length) {
@@ -196,6 +197,18 @@ export default function TakeQuizPage() {
       setShowFeedback(false);
       setDisputeMessage(null);
     }
+  };
+
+  const handleNext = () => {
+    if (selected !== null) goForward(selected);
+  };
+
+  const handleSkip = () => {
+    questionTimesRef.current[currentIndex] = Math.max(
+      1,
+      Math.round((Date.now() - questionStartRef.current) / 1000)
+    );
+    goForward(-1);
   };
 
   const handleRetakeImmediately = () => {
@@ -473,13 +486,21 @@ export default function TakeQuizPage() {
                 : "Next Question →"}
             </button>
           ) : (
-            <button
-              onClick={handleSubmitAnswer}
-              disabled={selected === null}
-              className="w-full mt-6 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 transition"
-            >
-              Submit Answer
-            </button>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleSkip}
+                className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-semibold transition"
+              >
+                Skip
+              </button>
+              <button
+                onClick={handleSubmitAnswer}
+                disabled={selected === null}
+                className="flex-1 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-semibold disabled:opacity-50 transition"
+              >
+                Submit Answer
+              </button>
+            </div>
           )}
         </div>
       </main>

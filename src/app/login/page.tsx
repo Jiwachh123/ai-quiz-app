@@ -13,7 +13,6 @@ import {
   EyeOff,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 
 function LoginContent() {
@@ -215,7 +214,6 @@ function LoginContent() {
               href="/quiz/create"
               className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-medium transition"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>Don&apos;t need history? Take Quiz as Guest (No Login)</span>
             </Link>
           </div>

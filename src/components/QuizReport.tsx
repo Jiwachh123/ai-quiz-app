@@ -10,8 +10,21 @@ export function AnalysisInsights({ attempt }: { attempt: QuizAttempt }) {
     (a, b) => a[1].correct / a[1].total - b[1].correct / b[1].total
   );
 
+  const skipped = attempt.answers.filter((answer) => answer === -1).length;
+  const wrong = attempt.totalQuestions - attempt.correctCount - skipped;
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 text-left">
+      <div className="flex flex-wrap gap-2 text-xs font-semibold">
+        <span className="px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300">
+          Correct: {attempt.correctCount}
+        </span>
+        <span className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300">Wrong: {wrong}</span>
+        <span className="px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-300">
+          Not attempted: {skipped}
+        </span>
+      </div>
+
       <div>
         <h2 className="text-lg font-bold text-white mb-2">Key Insights</h2>
         <ul className="list-disc pl-5 space-y-1 text-sm text-slate-300">
@@ -76,9 +89,15 @@ export function QuestionReview({ attempt }: { attempt: QuizAttempt }) {
                 {seconds ? ` • ${seconds}s` : ""}
               </span>
               <span
-                className={`font-semibold ${isCorrect ? "text-emerald-400" : "text-rose-400"}`}
+                className={`font-semibold ${
+                  userAnswer === -1
+                    ? "text-amber-400"
+                    : isCorrect
+                    ? "text-emerald-400"
+                    : "text-rose-400"
+                }`}
               >
-                {isCorrect ? "✓ Correct" : "✗ Incorrect"}
+                {userAnswer === -1 ? "Not attempted" : isCorrect ? "✓ Correct" : "✗ Incorrect"}
               </span>
             </div>
             <p className="text-sm font-semibold text-white">{q.question}</p>
