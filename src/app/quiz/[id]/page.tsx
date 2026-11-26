@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { prepareSound, playAnswerSound } from "@/lib/answer-sounds";
+import CorrectCelebration from "@/components/CorrectCelebration";
 import {
   getQuizById,
   saveAttempt,
@@ -37,6 +39,7 @@ export default function TakeQuizPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [completedAttempt, setCompletedAttempt] = useState<QuizAttempt | null>(
     null
@@ -73,6 +76,10 @@ export default function TakeQuizPage() {
     if (selected === null || !currentQuestion) return;
     setShowFeedback(true);
     setDisputeMessage(null);
+
+    const isCorrect = selected === currentQuestion.correctAnswer;
+    playAnswerSound(isCorrect);
+    setCelebrating(isCorrect);
   };
 
   const handleDisputeQuestion = async () => {
@@ -132,6 +139,7 @@ export default function TakeQuizPage() {
 
   const handleNext = () => {
     if (!quiz || !currentQuestion || selected === null || !user) return;
+    setCelebrating(false);
 
     const updatedAnswers = [...answers, selected];
     setAnswers(updatedAnswers);
@@ -284,6 +292,7 @@ export default function TakeQuizPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      {celebrating && <CorrectCelebration onDone={() => setCelebrating(false)} />}
       <nav className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-3xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <Link

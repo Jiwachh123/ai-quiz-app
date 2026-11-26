@@ -12,6 +12,8 @@ import {
 } from "@/lib/storage";
 import { downloadSingleQuizReportPdf } from "@/lib/pdf-report";
 import { compressImage } from "@/lib/image";
+import { prepareSound, playAnswerSound } from "@/lib/answer-sounds";
+import CorrectCelebration from "@/components/CorrectCelebration";
 import {
   User,
   QuizAttempt,
@@ -81,6 +83,7 @@ function CreateQuizContent() {
   const [savedAttempt, setSavedAttempt] = useState<QuizAttempt | null>(null);
   const [loadingAiFeedback, setLoadingAiFeedback] = useState(false);
   const [checkingAnswer, setCheckingAnswer] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
   const [disputing, setDisputing] = useState(false);
   const [disputeResult, setDisputeResult] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -316,6 +319,8 @@ function CreateQuizContent() {
   const handleAnswer = async () => {
     if (selectedAnswer === null || !currentQuestion || checkingAnswer) return;
 
+    prepareSound();
+    setCelebrating(false);
     setCheckingAnswer(true);
     setError("");
     setDisputeResult(null);
@@ -344,6 +349,8 @@ function CreateQuizContent() {
       }
 
       setFeedback(data);
+      playAnswerSound(data.isCorrect);
+      setCelebrating(data.isCorrect);
       setSessionToken(data.sessionToken || sessionToken);
       setAnsweredCount(data.answeredCount);
       setCorrectCount(data.correctCount);
@@ -501,6 +508,7 @@ function CreateQuizContent() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
+      {celebrating && <CorrectCelebration onDone={() => setCelebrating(false)} />}
       <nav className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <Link

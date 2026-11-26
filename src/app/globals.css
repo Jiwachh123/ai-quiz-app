@@ -18,3 +18,46 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Right-answer celebration */
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  opacity: 0;
+  animation: confetti-fall 1.3s ease-in forwards;
+}
+
+.celebrate-badge {
+  padding: 16px 28px;
+  border-radius: 9999px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 800;
+  box-shadow: 0 10px 40px rgba(16, 185, 129, 0.5);
+  animation: celebrate-pop 1.5s ease-out forwards;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes celebrate-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  25% { transform: scale(1.15); opacity: 1; }
+  40%, 75% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece { display: none; }
+  .celebrate-badge { animation-name: celebrate-fade; }
+}
+
+@keyframes celebrate-fade {
+  0%, 100% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+}
