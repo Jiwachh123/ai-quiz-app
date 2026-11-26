@@ -173,27 +173,15 @@ export default function DashboardPage() {
               Welcome back, {user.name}
             </h1>
             <p className="text-sm text-slate-400 mt-1">
-              Track your adaptive accuracy, weekly progress, spaced repetition deck, and GATE/BEU readiness.
+              Track your adaptive accuracy, weekly progress, and spaced repetition deck.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              href="/quiz/create?mode=gate"
-              className="px-4 py-2 rounded-xl bg-slate-900 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 text-xs font-semibold transition"
-            >
-              GATE CSE Mode
-            </Link>
-            <Link
-              href="/quiz/create?mode=beu"
-              className="px-4 py-2 rounded-xl bg-slate-900 border border-purple-500/40 hover:border-purple-400 text-purple-300 text-xs font-semibold transition"
-            >
-              BEU Subjects Mode
-            </Link>
-            <Link
               href="/quiz/create?mode=syllabus"
               className="px-4 py-2 rounded-xl bg-slate-900 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 text-xs font-semibold transition"
             >
-              Upload PDF / Syllabus
+              Quiz from Image / Text
             </Link>
           </div>
         </div>

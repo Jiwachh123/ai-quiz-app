@@ -232,7 +232,7 @@ export function downloadOverallPerformanceReportPdf(
       ? `Prioritize spaced repetition revision and targeted practice quizzes on: ${stats.weakTopics.join(
           ", "
         )}. Maintain daily consistency using the AI 7-Day Study Plan.`
-      : "Great consistency! Challenge yourself with GATE / BEU Hard-to-Expert adaptive sessions to push mastery higher.";
+      : "Great consistency! Challenge yourself with Hard-to-Expert adaptive sessions to push mastery higher.";
   wrapText(recText, 88).forEach((l) => lines.push({ text: l, size: 10 }));
 
   const blob = buildMultiPagePdfBlob(lines);

@@ -49,7 +49,7 @@ export default function LeaderboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(["all", "gate", "beu", "custom", "syllabus"] as const).map((m) => (
+            {(["all", "custom", "syllabus"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setFilterMode(m)}
@@ -59,7 +59,7 @@ export default function LeaderboardPage() {
                     : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
                 }`}
               >
-                {m}
+                {m === "syllabus" ? "Image / Text" : m}
               </button>
             ))}
           </div>

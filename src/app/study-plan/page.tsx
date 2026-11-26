@@ -28,7 +28,7 @@ export default function StudyPlanPage() {
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [plan, setPlan] = useState<StudyPlan | null>(null);
-  const [targetExam, setTargetExam] = useState("GATE CSE & BEU 7th Sem");
+  const [targetExam, setTargetExam] = useState("University Semester Exams");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
@@ -138,13 +138,7 @@ export default function StudyPlanPage() {
                 onChange={(e) => setTargetExam(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none"
               >
-                <option value="GATE CSE">GATE CSE Examination</option>
-                <option value="BEU B.Tech CSE Semester Exams">
-                  BEU B.Tech CSE Semester Exams
-                </option>
-                <option value="GATE CSE & BEU 7th Sem">
-                  GATE CSE &amp; BEU 7th Sem Combined
-                </option>
+                <option value="University Semester Exams">University Semester Exams</option>
                 <option value="Software Engineering Interviews & DSA">
                   Software Engineering Interviews &amp; DSA
                 </option>

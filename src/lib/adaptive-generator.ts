@@ -35,8 +35,6 @@ function getPrompt(
 ) {
   const modeGuidance: Record<ExamMode, string> = {
     custom: "Standard conceptual and applied university-level multiple-choice questions.",
-    gate: "GATE CSE Examination style: rigorous conceptual depth, numerical/analytical reasoning, edge cases, and time/space complexity or systems precision.",
-    beu: "BEU (Bihar Engineering University) B.Tech CSE semester examination style: clear syllabus alignment, core definitions, algorithmic trace, and applied architecture questions.",
     syllabus: "Generate questions STRICTLY grounded in the provided syllabus / PDF excerpt below.",
   };
 
@@ -44,7 +42,7 @@ function getPrompt(
     easy: "Easy (foundational definitions and direct recall).",
     medium: "Medium (application, moderate reasoning, comparing concepts).",
     hard: "Hard (multi-step analysis, subtle edge cases, numerical/trace reasoning).",
-    expert: "Expert (GATE-topper / research-grade synthesis, tricky corner cases, deep optimization).",
+    expert: "Expert (topper-level / research-grade synthesis, tricky corner cases, deep optimization).",
   };
 
   const syllabusSection =
@@ -56,7 +54,7 @@ function getPrompt(
 Generate exactly ${count} multiple-choice quiz questions.
 
 Topic: ${topic}
-Exam Mode: ${examMode.toUpperCase()} — ${modeGuidance[examMode]}
+Quiz Mode: ${examMode.toUpperCase()} — ${modeGuidance[examMode]}
 Difficulty: ${difficultyGuidance[difficulty]}
 ${syllabusSection}
 Rules:
@@ -340,7 +338,7 @@ export async function generatePersonalizedFeedback(params: {
   highestDifficultyReached: Difficulty;
 }): Promise<string> {
   const prompt = `
-You are an encouraging, sharp academic mentor for a B.Tech CSE / competitive exam student.
+You are an encouraging, sharp academic mentor for a B.Tech CSE student.
 Write a concise, personalized 3-4 sentence diagnostic feedback paragraph based on this quiz attempt:
 - Topic: ${params.topic}
 - Score: ${params.score}% (${params.correctCount}/${params.totalQuestions})
@@ -369,7 +367,7 @@ Return ONLY valid JSON:
   return `You scored ${params.score}% on ${params.topic} at an average pace of ${params.averageTimePerQuestion}s per question, reaching the ${params.highestDifficultyReached.toUpperCase()} tier. ${
     params.weakAreas.length > 0
       ? `Your primary weak spots are ${params.weakAreas.join(", ")}—focus your next revision session there before attempting Hard/Expert drills.`
-      : `Your foundation is solid; challenge yourself with timed GATE/BEU Hard-to-Expert quizzes to sharpen exam speed.`
+      : `Your foundation is solid; challenge yourself with timed Hard-to-Expert quizzes to sharpen exam speed.`
   }`;
 }
 

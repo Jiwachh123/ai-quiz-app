@@ -39,34 +39,7 @@ import {
   Gauge,
   Download,
   TrendingUp,
-  GraduationCap,
-  BookOpen,
 } from "lucide-react";
-
-const GATE_SUBJECTS = [
-  "Operating Systems (GATE)",
-  "Database Management Systems (GATE)",
-  "Computer Networks (GATE)",
-  "Algorithms & Complexity (GATE)",
-  "Data Structures (GATE)",
-  "Theory of Computation (GATE)",
-  "Compiler Design (GATE)",
-  "Digital Logic (GATE)",
-  "Computer Organization & Architecture (GATE)",
-  "Discrete Mathematics (GATE)",
-];
-
-const BEU_SUBJECTS = [
-  "Data Structures & Algorithms (BEU)",
-  "Operating Systems (BEU)",
-  "Database Management Systems (BEU)",
-  "Computer Networks (BEU)",
-  "Software Engineering (BEU)",
-  "Artificial Intelligence & ML (BEU)",
-  "Compiler Design (BEU)",
-  "Cloud Computing (BEU)",
-  "Web Technologies (BEU)",
-];
 
 const DIFF_STEPS: Difficulty[] = ["easy", "medium", "hard", "expert"];
 
@@ -90,7 +63,7 @@ function CreateQuizContent() {
   const [description, setDescription] = useState("");
   const [count, setCount] = useState(6);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-  const [timerPerQuestion, setTimerPerQuestion] = useState<number>(60); // 0 = no countdown limit
+  const [timerPerQuestion, setTimerPerQuestion] = useState<number>(0); // 0 = timer off
   const [syllabusText, setSyllabusText] = useState("");
   const [imageNotice, setImageNotice] = useState("");
   const [readingImage, setReadingImage] = useState(false);
@@ -133,7 +106,7 @@ function CreateQuizContent() {
     const paramMode = searchParams.get("mode") as ExamMode | null;
     const isWeakArea = searchParams.get("weakArea");
 
-    if (paramMode && ["custom", "gate", "beu", "syllabus"].includes(paramMode)) {
+    if (paramMode && ["custom", "syllabus"].includes(paramMode)) {
       setExamMode(paramMode);
     }
     if (paramTopic) {
@@ -1047,7 +1020,7 @@ function CreateQuizContent() {
           </div>
         </div>
       ) : (
-        /* QUIZ SETUP SCREEN (Exam Modes, Image/Text Input, Timer, Weak Areas) */
+        /* QUIZ SETUP SCREEN (Quiz Modes, Image/Text Input, Timer, Weak Areas) */
         <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
           {!user && (
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-300">
@@ -1092,21 +1065,19 @@ function CreateQuizContent() {
                   Configure Your Adaptive Quiz
                 </h1>
                 <p className="text-xs text-slate-400">
-                  4-Level Adaptive Engine (Easy → Medium → Hard → Expert) with Exam Modes, Image/Text Quizzes & Timer
+                  4-Level Adaptive Engine (Easy → Medium → Hard → Expert) with Image/Text Quizzes & Optional Timer
                 </p>
               </div>
             </div>
 
-            {/* Exam Mode Selector */}
+            {/* Quiz Mode Selector */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-                Select Exam Mode
+                Quiz Mode
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: "custom", label: "Custom Topic", icon: Sparkles },
-                  { id: "gate", label: "GATE CSE Mode", icon: GraduationCap },
-                  { id: "beu", label: "BEU Subjects", icon: BookOpen },
                   { id: "syllabus", label: "Image / Text", icon: ImageIcon },
                 ].map((m) => {
                   const Icon = m.icon;
@@ -1133,55 +1104,6 @@ function CreateQuizContent() {
                 })}
               </div>
             </div>
-
-            {/* GATE or BEU Quick Subject Picker */}
-            {examMode === "gate" && (
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
-                <p className="text-xs font-semibold text-indigo-300">
-                  Pick a GATE CSE Subject:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {GATE_SUBJECTS.map((subj) => (
-                    <button
-                      key={subj}
-                      type="button"
-                      onClick={() => setTopic(subj)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                        topic === subj
-                          ? "bg-indigo-600 text-white border-indigo-500"
-                          : "bg-slate-900 border-slate-800 text-slate-300 hover:border-indigo-500/50"
-                      }`}
-                    >
-                      {subj.replace(" (GATE)", "")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {examMode === "beu" && (
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2.5">
-                <p className="text-xs font-semibold text-purple-300">
-                  Pick a BEU B.Tech CSE Subject:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {BEU_SUBJECTS.map((subj) => (
-                    <button
-                      key={subj}
-                      type="button"
-                      onClick={() => setTopic(subj)}
-                      className={`px-3 py-1.5 rounded-lg text-xs border transition ${
-                        topic === subj
-                          ? "bg-purple-600 text-white border-purple-500"
-                          : "bg-slate-900 border-slate-800 text-slate-300 hover:border-purple-500/50"
-                      }`}
-                    >
-                      {subj.replace(" (BEU)", "")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Image / Text Panel */}
             {examMode === "syllabus" && (
@@ -1285,17 +1207,17 @@ function CreateQuizContent() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Quiz Timer Mode
+                  Quiz Timer (Optional)
                 </label>
                 <select
                   value={timerPerQuestion}
                   onChange={(e) => setTimerPerQuestion(Number(e.target.value))}
                   className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none"
                 >
-                  <option value={0}>Untimed (Stopwatch Only)</option>
-                  <option value={45}>Fast Exam Pace (45s / Q)</option>
-                  <option value={60}>Standard Exam (60s / Q)</option>
-                  <option value={90}>GATE Deep Analytical (90s / Q)</option>
+                  <option value={0}>No Timer</option>
+                  <option value={45}>45 seconds per question</option>
+                  <option value={60}>60 seconds per question</option>
+                  <option value={90}>90 seconds per question</option>
                 </select>
               </div>
 

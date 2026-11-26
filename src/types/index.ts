@@ -13,7 +13,7 @@ export type Difficulty = "easy" | "medium" | "hard" | "expert";
 
 export type ConfidenceLevel = "low" | "medium" | "high";
 
-export type ExamMode = "custom" | "gate" | "beu" | "syllabus";
+export type ExamMode = "custom" | "syllabus";
 
 export interface QuestionVerification {
   isVerified: boolean;

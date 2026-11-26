@@ -149,7 +149,7 @@ export function buildQuizAnalysis(
   } else if (averageTimePerQuestion <= 15 && accuracy < 65) {
     timeManagementNote = `You answered quickly (${averageTimePerQuestion}s/question) but accuracy dipped—slow down slightly to verify edge cases.`;
   } else if (averageTimePerQuestion <= 40) {
-    timeManagementNote = `Balanced pacing (${averageTimePerQuestion}s/question), well suited for GATE & university exam conditions.`;
+    timeManagementNote = `Balanced pacing (${averageTimePerQuestion}s/question), well suited for university exam conditions.`;
   } else {
     timeManagementNote = `Average time (${averageTimePerQuestion}s/question) is on the slower side—practice timed drills to improve speed.`;
   }
@@ -169,7 +169,7 @@ export function buildQuizAnalysis(
 
   let recommendation = "";
   if (accuracy >= 85) {
-    recommendation = `Great mastery of ${mainTopic}! Push further with Hard-to-Expert adaptive sessions or GATE timed practice.`;
+    recommendation = `Great mastery of ${mainTopic}! Push further with Hard-to-Expert adaptive sessions or timed practice.`;
   } else if (accuracy >= 60) {
     recommendation =
       weakAreas.length > 0
@@ -699,11 +699,11 @@ export function getLeaderboard(
     });
   });
 
-  // Add realistic BEU/GATE benchmark peers when local browser only has 1-2 users
+  // Add realistic benchmark peers when local browser only has 1-2 users
   const benchmarks: LeaderboardEntry[] = [
     {
       userId: "bench-1",
-      name: "Aarav Sharma (GATE CSE)",
+      name: "Aarav Sharma",
       totalQuizzes: 14,
       totalQuestions: 140,
       averageScore: 88,
@@ -715,7 +715,7 @@ export function getLeaderboard(
     },
     {
       userId: "bench-2",
-      name: "Priya Kumari (BEU CSE)",
+      name: "Priya Kumari",
       totalQuizzes: 10,
       totalQuestions: 95,
       averageScore: 82,
@@ -727,7 +727,7 @@ export function getLeaderboard(
     },
     {
       userId: "bench-3",
-      name: "Rohan Verma (BEU 7th Sem)",
+      name: "Rohan Verma",
       totalQuizzes: 6,
       totalQuestions: 60,
       averageScore: 74,

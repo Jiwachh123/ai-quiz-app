@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const plan = await generateSevenDayStudyPlan({
       studentName: String(body.studentName || "Student"),
-      targetExam: String(body.targetExam || "GATE CSE & BEU Subjects"),
+      targetExam: String(body.targetExam || "University Semester Exams"),
       overallAccuracy: Number(body.overallAccuracy) || 0,
       weakTopics: Array.isArray(body.weakTopics) ? body.weakTopics : [],
       strongTopics: Array.isArray(body.strongTopics) ? body.strongTopics : [],
