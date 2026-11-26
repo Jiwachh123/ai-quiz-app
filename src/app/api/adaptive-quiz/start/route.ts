@@ -22,9 +22,9 @@ export async function POST(request: Request) {
     if (!topic || topic.length > 200) {
       return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
     }
-    if (!Number.isInteger(totalQuestions) || totalQuestions < 3 || totalQuestions > 100) {
+    if (!Number.isInteger(totalQuestions) || totalQuestions < 3 || totalQuestions > 50) {
       return NextResponse.json(
-        { error: "Question count must be between 3 and 100" },
+        { error: "Question count must be between 3 and 50" },
         { status: 400 }
       );
     }

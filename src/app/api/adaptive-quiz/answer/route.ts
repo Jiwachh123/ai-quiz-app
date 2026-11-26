@@ -171,7 +171,8 @@ export async function POST(request: Request) {
         session.difficulty,
         batchSize,
         session.examMode || "custom",
-        session.syllabusText
+        session.syllabusText,
+        session.questions.map((q) => q.question) // so they are not asked again
       );
 
       session.questions.push(...newQuestions);

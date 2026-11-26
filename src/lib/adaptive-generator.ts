@@ -31,8 +31,17 @@ function getPrompt(
   difficulty: Difficulty,
   count: number,
   examMode: ExamMode = "custom",
-  syllabusText?: string
+  syllabusText?: string,
+  previousQuestions: string[] = []
 ) {
+  // Shortened to keep the request small, even in a 50-question quiz
+  const avoidSection =
+    previousQuestions.length > 0
+      ? `\nAlready asked (do NOT repeat or reword these; test a different point):\n${previousQuestions
+          .map((q) => `- ${q.slice(0, 100)}`)
+          .join("\n")}\n`
+      : "";
+
   const modeGuidance: Record<ExamMode, string> = {
     custom: "Standard conceptual and applied university-level multiple-choice questions.",
     syllabus: "Generate questions STRICTLY grounded in the provided syllabus / PDF excerpt below.",
@@ -56,7 +65,7 @@ Generate exactly ${count} multiple-choice quiz questions.
 Topic: ${topic}
 Quiz Mode: ${examMode.toUpperCase()} — ${modeGuidance[examMode]}
 Difficulty: ${difficultyGuidance[difficulty]}
-${syllabusSection}
+${syllabusSection}${avoidSection}
 Rules:
 - Each question must have exactly 4 distinct options.
 - Only ONE option must be factually correct.
@@ -254,17 +263,37 @@ export async function generateAdaptiveQuestions(
   difficulty: Difficulty,
   count: number = 1,
   examMode: ExamMode = "custom",
-  syllabusText?: string
+  syllabusText?: string,
+  previousQuestions: string[] = []
 ): Promise<AdaptiveQuestion[]> {
-  const prompt = getPrompt(topic, difficulty, count, examMode, syllabusText);
+  const prompt = getPrompt(topic, difficulty, count, examMode, syllabusText, previousQuestions);
+  const normalize = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+  const generate = async () => {
+    const seen = new Set(previousQuestions.map(normalize));
+    const questions = parseQuestions(await callLLMJson(prompt, 0.4), topic, difficulty, count);
+    // Drop exact repeats in case the AI ignores the instruction
+    const fresh = questions.filter((q) => {
+      const key = normalize(q.question);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return { questions, fresh };
+  };
 
   try {
-    return parseQuestions(await callLLMJson(prompt, 0.4), topic, difficulty, count);
+    const { fresh } = await generate();
+    if (fresh.length > 0) return fresh;
+    console.warn("Only repeated questions received, retrying once");
   } catch (error) {
     // The AI sometimes replies in the wrong format, so ask one more time
     console.warn("Question generation failed, retrying once:", error);
-    return parseQuestions(await callLLMJson(prompt, 0.4), topic, difficulty, count);
   }
+
+  const { questions, fresh } = await generate();
+  // A repeated question is better than stopping the quiz
+  return fresh.length > 0 ? fresh : questions;
 }
 
 /**

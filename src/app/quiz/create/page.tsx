@@ -64,7 +64,7 @@ function CreateQuizContent() {
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState("");
   const [description, setDescription] = useState("");
-  const [count, setCount] = useState(6);
+  const [count, setCount] = useState(10);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [timerPerQuestion, setTimerPerQuestion] = useState<number>(0); // 0 = timer off
   const [syllabusText, setSyllabusText] = useState("");
@@ -1186,7 +1186,7 @@ function CreateQuizContent() {
                   onChange={(e) => setCount(Number(e.target.value))}
                   className="w-full px-4 py-3 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl text-white text-sm outline-none"
                 >
-                  {[5, 6, 9, 10, 15, 20, 25, 30].map((n) => (
+                  {[5, 10, 15, 20, 30, 40, 50].map((n) => (
                     <option key={n} value={n}>
                       {n} Questions
                     </option>
