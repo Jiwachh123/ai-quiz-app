@@ -59,7 +59,7 @@ Get your API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 **Security note:** The `NEXT_PUBLIC_` prefix exposes the key to the browser. This configuration should only be used for experimentation. Before deploying publicly, move Gemini API calls to server-side code and use a server-only environment variable such as `GEMINI_API_KEY`.
 
-**Image to Quiz** reads images on the server. Add a server-only key (Groq is used as a backup if set):
+**Image to Quiz** reads images on the server. Add a server-only key (Groq is tried first if set, with Gemini as the backup):
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key

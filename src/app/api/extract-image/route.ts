@@ -136,11 +136,12 @@ export async function POST(request: Request) {
     const groqKey = process.env.GROQ_API_KEY || process.env.NEXT_PUBLIC_GROQ_API_KEY;
 
     const providers: { name: string; read: () => ReturnType<typeof readWithGemini> }[] = [];
-    if (geminiKey) {
-      providers.push({ name: "Gemini", read: () => readWithGemini(geminiKey, images) });
-    }
+    // Groq first because it is faster; Gemini is the backup
     if (groqKey) {
       providers.push({ name: "Groq", read: () => readWithGroq(groqKey, images) });
+    }
+    if (geminiKey) {
+      providers.push({ name: "Gemini", read: () => readWithGemini(geminiKey, images) });
     }
 
     if (providers.length === 0) {

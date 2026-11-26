@@ -258,11 +258,15 @@ export async function generateAdaptiveQuestions(
   examMode: ExamMode = "custom",
   syllabusText?: string
 ): Promise<AdaptiveQuestion[]> {
-  const rawText = await callLLMJson(
-    getPrompt(topic, difficulty, count, examMode, syllabusText),
-    0.4
-  );
-  return parseQuestions(rawText, topic, difficulty, count);
+  const prompt = getPrompt(topic, difficulty, count, examMode, syllabusText);
+
+  try {
+    return parseQuestions(await callLLMJson(prompt, 0.4), topic, difficulty, count);
+  } catch (error) {
+    // The AI sometimes replies in the wrong format, so ask one more time
+    console.warn("Question generation failed, retrying once:", error);
+    return parseQuestions(await callLLMJson(prompt, 0.4), topic, difficulty, count);
+  }
 }
 
 /**
